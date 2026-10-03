@@ -12,6 +12,9 @@ on:
         required: false
         type: string
 
+permissions:
+  contents: read
+
 jobs:
   detect-changes:
     runs-on: ubuntu-latest
@@ -102,8 +105,13 @@ jobs:
             cd src
           fi
         
-          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          # ECR tags are immutable: re-running CI for the same commit must not push the same tag again
+          if docker manifest inspect "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" > /dev/null 2>&1; then
+            echo "::notice::$ECR_REPOSITORY:$IMAGE_TAG already exists in ECR, skipping build and push"
+          else
+            docker build -t "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" .
+            docker push "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
+          fi
           echo "NEW_TAG=$IMAGE_TAG" >> $GITHUB_ENV
           echo "FULL_REPO=$ECR_REGISTRY/$ECR_REPOSITORY" >> $GITHUB_ENV
 
