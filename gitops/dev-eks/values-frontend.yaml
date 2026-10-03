@@ -30,7 +30,7 @@ env:
   SHOPPING_ASSISTANT_SERVICE_ADDR: "shoppingassistantservice-dev:80"
   ENV_PLATFORM: "aws"
   GOMAXPROCS: "1"
-  GOMEMLITMIT: "230Mi"
+  GOMEMLIMIT: "230Mi"
 
 resources:
   requests:

@@ -50,7 +50,7 @@ spec:
           # Set environment variables for Go runtime
             - name: GOMAXPROCS
               value: "1"
-            - name: GOMEMLITMIT
+            - name: GOMEMLIMIT
               value: "230Mi"
           resources:
             requests:
