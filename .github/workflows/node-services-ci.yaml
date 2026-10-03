@@ -113,7 +113,7 @@ jobs:
 
           # Retry loop for concurrent pushes
           for i in {1..5}; do
-            git pull --rebase origin main
+            git pull --rebase --autostash origin main
             if git push origin main; then
               echo "Successfully pushed ${{ matrix.service }} updates."
               exit 0

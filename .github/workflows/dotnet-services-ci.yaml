@@ -70,8 +70,8 @@ jobs:
       # `dotnet list package --vulnerable` always exits 0, so fail explicitly when vulnerabilities are reported
       - name: Run Security Scan
         run: |
-          dotnet list package --vulnerable --include-transitive 2>&1 | tee vulnerable.txt
-          if grep -q "has the following vulnerable packages" vulnerable.txt; then
+          dotnet list package --vulnerable --include-transitive 2>&1 | tee "$RUNNER_TEMP/vulnerable.txt"
+          if grep -q "has the following vulnerable packages" "$RUNNER_TEMP/vulnerable.txt"; then
             echo "::error::Vulnerable NuGet packages found"
             exit 1
           fi
@@ -124,7 +124,7 @@ jobs:
 
           # Retry loop for concurrent pushes
           for i in {1..5}; do
-            git pull --rebase origin main
+            git pull --rebase --autostash origin main
             if git push origin main; then
               echo "Successfully pushed ${{ matrix.service }} updates."
               exit 0
