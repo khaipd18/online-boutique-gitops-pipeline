@@ -11,7 +11,7 @@ spec:
     targetRevision: 84.4.0
 
   destination:
-    name: 'khaipd18-project-cluster' 
+    server: 'https://kubernetes.default.svc' 
     namespace: monitoring            
   syncPolicy:
     automated:
