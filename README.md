@@ -33,7 +33,7 @@ Hệ thống tuân thủ nguyên tắc IaC và GitOps.
 ## 📁 Cấu trúc Monorepo
 
 ```text
-devops_project/
+online-boutique-gitops-pipeline/
 ├── .github/workflows/   # CI pipeline đa ngôn ngữ (Go, .NET, Node...) và luồng Terraform
 ├── gitops/              # Cấu hình Argo CD (ApplicationSet) và values.yaml cho từng môi trường
 ├── helm-charts/         # Universal Helm Chart dùng chung cho 11 microservices
@@ -76,7 +76,7 @@ Thiết lập kiến trúc semi-air-gapped cho Worker Nodes trong Private Subnet
 #### 🆔 Xác thực OIDC cho GitHub Actions
 Loại bỏ Access/Secret Keys tĩnh:
 * Dùng **OIDC** thiết lập trust relationship giữa GitHub và AWS.
-* **Trust Policy** giới hạn truy cập theo repo `khaipd18/devops_project`.
+* **Trust Policy** giới hạn truy cập theo repo `khaipd18/online-boutique-gitops-pipeline`.
 
 #### 💾 Quản lý Terraform State
 Dùng **Remote Backend** quản lý state file:
