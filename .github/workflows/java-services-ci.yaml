@@ -63,13 +63,19 @@ jobs:
         # file gradlew may not have execute permissions by default
         run: chmod +x gradlew
 
-      - name: Run Linter (Spotless / Checkstyle)
-        # check format code.
-        run: ./gradlew spotlessCheck || echo "Linter failed, Devs should format code locally!"
+      # google-java-format needs access to JDK compiler internals on JDK 16+.
+      # Non-blocking until existing formatting issues are fixed; failures show as a warning on the run
+      - name: Run Linter (google-java-format)
+        continue-on-error: true
+        run: |
+          EXPORTS=""
+          for pkg in api code file parser tree util; do
+            EXPORTS="$EXPORTS --add-exports=jdk.compiler/com.sun.tools.javac.$pkg=ALL-UNNAMED"
+          done
+          ./gradlew "-Dorg.gradle.jvmargs=$EXPORTS" verifyGoogleJavaFormat
 
       - name: Run Unit Tests
-        # Run tests. If test configuration is not set up in build.gradle, skip.
-        run: ./gradlew test || echo "Unit tests failed or missing, but continuing for now."
+        run: ./gradlew test
 
       - name: Build Application (Optional)
         # Ensure source code is compiled into a .jar file before packaging Docker
