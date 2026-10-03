@@ -45,3 +45,7 @@ terraform.rc
 *.tfplan
 *tfplan*
 # planout
+
+# Checkov scan artifacts (.github/workflows/security-scan.yaml)
+rendered/
+checkov-report

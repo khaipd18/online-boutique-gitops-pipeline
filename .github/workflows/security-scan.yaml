@@ -1,0 +1,65 @@
+name: 'Security Scan (Checkov)'
+
+on:
+  pull_request:
+    branches: [ "main" ]
+    paths:
+      - 'terraform/**'
+      - 'helm-charts/**'
+      - 'gitops/**'
+      - '.github/workflows/**'
+      - '.checkov.yaml'
+  push:
+    branches: [ "main" ]
+    paths:
+      - 'terraform/**'
+      - 'helm-charts/**'
+      - 'gitops/**'
+      - '.github/workflows/**'
+      - '.checkov.yaml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  checkov:
+    name: 'Checkov Scan'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
+      - name: Install Checkov
+        run: pip install checkov==3.3.22
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v5.0.1
+
+      # Scan what Argo CD actually deploys: the shared chart rendered with each service's dev-eks values
+      - name: Render Helm releases
+        run: |
+          mkdir -p rendered
+          for f in gitops/dev-eks/values-*.yaml; do
+            name=$(basename "$f" .yaml)
+            name=${name#values-}
+            helm template "$name-dev" helm-charts -f "$f" --namespace dev-eks > "rendered/$name.yaml"
+          done
+
+      # Non-blocking for now: findings show as a failed step and in the job summary without failing the run
+      - name: Run Checkov
+        continue-on-error: true
+        run: checkov --config-file .checkov.yaml -d . -o cli -o github_failed_only --output-file-path console,checkov-report --compact
+
+      - name: Publish report to job summary
+        if: always()
+        run: |
+          if [ -f checkov-report ]; then
+            cat checkov-report >> "$GITHUB_STEP_SUMMARY"
+          fi

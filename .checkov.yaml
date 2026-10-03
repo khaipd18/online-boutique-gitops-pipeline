@@ -1,0 +1,18 @@
+# Checkov configuration, used by .github/workflows/security-scan.yaml
+# Run locally: render Helm into rendered/ (see the workflow), then: checkov --config-file .checkov.yaml -d .
+framework:
+  - terraform
+  - kubernetes
+  - github_actions
+
+skip-path:
+  - src/          # upstream application code (Google microservices-demo), not maintained in this repo
+  - helm-charts/  # scanned through manifests rendered with the real gitops/dev-eks values instead
+  - gitops/       # Helm values files, not Kubernetes manifests
+  - k8s-manifests/ # legacy Kustomize manifests, not deployed by Argo CD
+
+skip-check:
+  - CKV_AWS_163   # ECR scan on push is configured at registry level (aws_ecr_registry_scanning_configuration)
+  - CKV_AWS_136   # ECR default AES-256 encryption is sufficient for the dev environment
+  - CKV2_AWS_1    # NACL associations are created with for_each and are not resolved by Checkov (false positive)
+  - CKV_K8S_21    # namespace is set at deploy time by Argo CD (dev-eks) and Kustomize overlays
