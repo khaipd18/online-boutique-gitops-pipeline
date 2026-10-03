@@ -93,18 +93,18 @@ Quản lý cấu hình được thực hiện qua 3 phương pháp: Custom Manif
 <br>
 
 #### 📜 Giai đoạn phát triển
-1. **Custom Manifests:** Viết K8s primitives (Deployment, Service, ConfigMap) cho 11 services. Cấp phát Resource Limits/Requests độc lập.
+1. **Custom Manifests:** Viết K8s primitives (Deployment, Service, ServiceAccount) cho 11 services. Cấp phát Resource Limits/Requests độc lập.
 2. **Kustomize Integration:** Sử dụng để giảm lặp code (DRY). Tách biệt `base/` (config tĩnh) và `overlays/` (config override theo môi trường).
 3. **Helm Charts:** Đóng gói thành template động (Dynamic Templating) hỗ trợ versioning và rollback.
 
 #### 📂 Cấu hình đa môi trường
-* **`local-dev`**: Giảm CPU/RAM limits, hạ Replicas, đổi sang NodePort để test local.
-* **`aws-dev`**: Tích hợp hạ tầng EKS (cấp phát AWS LoadBalancer, setup Ingress, map Image Tag từ ECR).
+* **`local-dev`**: Thêm prefix `local-`, set `imagePullPolicy: Never` để dùng image local, patch địa chỉ service tương ứng.
+* **`aws-dev`**: Thêm prefix `aws-dev-`, map image sang ECR, patch địa chỉ service, expose `frontend-external` (LoadBalancer) ở port 80 → 8080.
 
 #### 📦 Universal Helm Chart
 Sử dụng một **Universal Chart** thay vì duy trì nhiều chart ròi rạc:
-* **`templates/`**: Chứa core resources (`deployment.yaml`, `service.yaml`) render bằng Go Template.
-* **`values.yaml`**: Source of Truth chứa các override về Image Tag, Port, Limits của từng service.
+* **`templates/`**: Chứa core resources (`deployment.yaml`, `service.yaml`, `serviceaccount.yaml`) render bằng Go Template.
+* **`values.yaml`**: Giá trị mặc định của chart; override theo từng service/môi trường nằm ở `gitops/<env>/values-<service>.yaml` (Image Tag, Port, Limits...).
 * **`Chart.yaml`**: Quản lý metadata và versioning.
 </details>
 
@@ -161,8 +161,8 @@ Sử dụng **ApplicationSet** + List Generator quét danh sách services (`adse
 
 #### 🚦 Decoupling với `frontend-external`
 Expose ứng dụng ra LoadBalancer:
-* Set `replicaCount: 0` không khởi tạo Pod mới.
-* Dùng `selectorOverride: "frontend"` map Service Type LoadBalancer vào các Pods của service `frontend` nội bộ.
+* Set `deployment.enabled: false` để chỉ render Service, không tạo Deployment/Pod mới.
+* Dùng `selectorOverride: "frontend-dev"` map Service Type LoadBalancer vào các Pods của release `frontend-dev` nội bộ.
 
 #### 📊 Monitoring Stack (kube-prometheus-stack)
 Triển khai Prometheus & Grafana stack. Sử dụng `ServerSideApply=true` để bypass giới hạn dung lượng annotation của K8s khi apply file CRDs.
