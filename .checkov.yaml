@@ -8,7 +8,10 @@ skip-path:
   - k8s-manifests/ # legacy Kustomize manifests, not deployed by Argo CD
 
 skip-check:
-  - CKV_AWS_163   # ECR scan on push is configured at registry level (aws_ecr_registry_scanning_configuration)
-  - CKV_AWS_136   # ECR default AES-256 encryption is sufficient for the dev environment
-  - CKV2_AWS_1    # NACL associations are created with for_each and are not resolved by Checkov (false positive)
-  - CKV_K8S_21    # namespace is set at deploy time by Argo CD (dev-eks) and Kustomize overlays
+  - CKV_AWS_163   # ECR scan on push is configured at registry level (aws_ecr_registry_scanning_configuration);
+                  # this check only looks at the deprecated repository-level image_scanning_configuration
+  - CKV_AWS_136   # ECR images are encrypted at rest by default (AES256, S3-managed keys), enough for dev;
+                  # encryption cannot be changed on existing repositories, switching to KMS means recreating them
+  - CKV2_AWS_1    # false positive: the rule only accepts subnet_ids on aws_network_acl and ignores
+                  # aws_network_acl_association, which modules/vpc uses to attach the NACLs
+  - CKV_K8S_21    # the Helm templates set no metadata.namespace; Argo CD deploys them into dev-eks
