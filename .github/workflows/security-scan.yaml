@@ -4,7 +4,6 @@ on:
   pull_request:
     branches: [ "main" ]
     paths:
-      - 'terraform/**'
       - 'helm-charts/**'
       - 'gitops/**'
       - '.github/workflows/**'
@@ -12,7 +11,6 @@ on:
   push:
     branches: [ "main" ]
     paths:
-      - 'terraform/**'
       - 'helm-charts/**'
       - 'gitops/**'
       - '.github/workflows/**'
@@ -52,10 +50,11 @@ jobs:
             helm template "$name-dev" helm-charts -f "$f" --namespace dev-eks > "rendered/$name.yaml"
           done
 
+      # Terraform is scanned (blocking) in terraform.yaml before plan/apply.
       # Non-blocking for now: findings show as a failed step and in the job summary without failing the run
       - name: Run Checkov
         continue-on-error: true
-        run: checkov --config-file .checkov.yaml -d . -o cli -o github_failed_only --output-file-path console,checkov-report --compact
+        run: checkov --config-file .checkov.yaml -d . --framework kubernetes github_actions -o cli -o github_failed_only --output-file-path console,checkov-report --compact
 
       - name: Publish report to job summary
         if: always()

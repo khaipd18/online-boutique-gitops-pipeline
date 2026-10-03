@@ -15,8 +15,32 @@ permissions:
   contents: read
 
 jobs:
+  checkov:
+    name: 'Checkov Scan'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v6
+
+    - name: Set up Python
+      uses: actions/setup-python@v6
+      with:
+        python-version: '3.12'
+
+    - name: Install Checkov
+      run: pip install checkov==3.3.22
+
+    # Blocking gate: findings accepted in terraform/.checkov.baseline are ignored, any new finding fails the run
+    # To accept a new finding, fix it or regenerate the baseline with --create-baseline in a reviewed PR
+    - name: Run Checkov
+      run: checkov --config-file .checkov.yaml -d terraform --framework terraform --baseline terraform/.checkov.baseline --compact
+
   terraform:
     name: 'Terraform Core Workflow'
+    needs: checkov
     runs-on: ubuntu-latest
     
     defaults:

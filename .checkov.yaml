@@ -1,10 +1,6 @@
-# Checkov configuration, used by .github/workflows/security-scan.yaml
-# Run locally: render Helm into rendered/ (see the workflow), then: checkov --config-file .checkov.yaml -d .
-framework:
-  - terraform
-  - kubernetes
-  - github_actions
-
+# Shared Checkov configuration. Frameworks are selected per workflow:
+#   terraform.yaml     -> Terraform, blocking, against terraform/.checkov.baseline
+#   security-scan.yaml -> Kubernetes (rendered Helm releases) and GitHub Actions, report only
 skip-path:
   - src/          # upstream application code (Google microservices-demo), not maintained in this repo
   - helm-charts/  # scanned through manifests rendered with the real gitops/dev-eks values instead

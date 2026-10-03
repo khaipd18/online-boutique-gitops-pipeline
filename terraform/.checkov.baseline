@@ -1,0 +1,46 @@
+{
+    "failed_checks": [
+        {
+            "file": "/modules/eks/main.tf",
+            "findings": [
+                {
+                    "resource": "module.eks.aws_eks_cluster.eks_cluster",
+                    "check_ids": [
+                        "CKV_AWS_39",
+                        "CKV_AWS_58"
+                    ]
+                }
+            ]
+        },
+        {
+            "file": "/modules/vpc/main.tf",
+            "findings": [
+                {
+                    "resource": "module.vpc.aws_network_acl.private_subnet_network_acl",
+                    "check_ids": [
+                        "CKV_AWS_229",
+                        "CKV_AWS_230",
+                        "CKV_AWS_231",
+                        "CKV_AWS_232"
+                    ]
+                },
+                {
+                    "resource": "module.vpc.aws_network_acl.public_subnet_network_acl",
+                    "check_ids": [
+                        "CKV_AWS_229",
+                        "CKV_AWS_230",
+                        "CKV_AWS_231",
+                        "CKV_AWS_232"
+                    ]
+                },
+                {
+                    "resource": "module.vpc.aws_vpc.vpc",
+                    "check_ids": [
+                        "CKV2_AWS_11",
+                        "CKV2_AWS_12"
+                    ]
+                }
+            ]
+        }
+    ]
+}
