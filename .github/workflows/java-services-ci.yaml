@@ -55,7 +55,7 @@ jobs:
       - name: Set up JDK
         uses: actions/setup-java@v4
         with:
-          java-version: '21' 
+          java-version: '24' # keep in sync with the builder JDK in src/adservice/Dockerfile
           distribution: 'temurin' 
           cache: 'gradle' 
 
