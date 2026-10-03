@@ -13,4 +13,5 @@ skip-check:
   - CKV_AWS_136   # ECR images are encrypted at rest by default (AES256, S3-managed keys), enough for dev;
                   # encryption cannot be changed on existing repositories, switching to KMS means recreating them
   - CKV2_AWS_1    # false positive: the rule only accepts subnet_ids on aws_network_acl and ignores
-                  # aws_network_acl_association, which modules/vpc uses to attach the NACLs
+                  # aws_network_acl_association, which modules/vpc uses to attach the NACLs. Switching to
+                  # subnet_ids does not help either: the subnets come from a child module, which the rule cannot follow
