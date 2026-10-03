@@ -3,8 +3,27 @@ resource "aws_ecr_repository" "ecr_repository" {
   name                 = each.value
   image_tag_mutability = var.image_tag_mutability
   force_delete         = var.force_delete
-  image_scanning_configuration {
-    scan_on_push = var.scan_on_push
+}
+
+# Scanning is configured at the registry level, as recommended by AWS: the repository-level
+# image_scanning_configuration (PutImageScanningConfiguration API) is being deprecated.
+# Note: this resource owns the scanning configuration of the whole private registry in this region.
+resource "aws_ecr_registry_scanning_configuration" "this" {
+  scan_type = "BASIC"
+
+  dynamic "rule" {
+    for_each = var.scan_on_push ? [1] : []
+    content {
+      scan_frequency = "SCAN_ON_PUSH"
+
+      dynamic "repository_filter" {
+        for_each = var.repository_names
+        content {
+          filter      = repository_filter.value
+          filter_type = "WILDCARD"
+        }
+      }
+    }
   }
 }
 

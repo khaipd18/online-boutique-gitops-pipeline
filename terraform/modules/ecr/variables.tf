@@ -1,5 +1,5 @@
 variable "scan_on_push" {
-  description = "Whether to enable image scanning on push"
+  description = "Whether to enable basic scan on push for the repositories (registry-level scanning rule)"
   type        = bool
 }
 

@@ -18,9 +18,9 @@ variable "az_ids" {
 
 #ecr configuration
 variable "scan_on_push" {
-  description = "Whether to enable image scanning on push"
+  description = "Whether to enable basic scan on push for the repositories (registry-level scanning rule)"
   type        = bool
-  default     = false
+  default     = true
 }
 
 variable "repository_names" {
@@ -37,9 +37,9 @@ variable "force_delete" {
 }
 
 variable "image_tag_mutability" {
-  description = "The tag mutability setting for the repository"
+  description = "The tag mutability setting for the repository. CI tags images with the git SHA, so tags never need to be overwritten"
   type        = string
-  default     = "MUTABLE"
+  default     = "IMMUTABLE"
 }
 
 variable "allow_push_principals" {
