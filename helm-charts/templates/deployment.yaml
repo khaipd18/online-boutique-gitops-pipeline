@@ -66,8 +66,6 @@ spec:
           livenessProbe:
             {{- toYaml .Values.probes.liveness | nindent 12 }}
           {{- end }}
-          {{- if .Values.volumeMounts }}
-          {{- end }}
       {{- if .Values.volumes }}
       volumes:
         {{- toYaml .Values.volumes | nindent 8 }}
