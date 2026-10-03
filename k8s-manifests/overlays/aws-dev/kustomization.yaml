@@ -4,9 +4,11 @@ kind: Kustomization
 namespace: dev-microservices
 
 namePrefix: aws-dev-
-commonLabels:
-  env: aws-dev
-  project: microservices-demo
+labels:
+  - pairs:
+      env: aws-dev
+      project: microservices-demo
+    includeSelectors: true
 
 resources:
   - ../../base

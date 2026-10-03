@@ -4,9 +4,11 @@ kind: Kustomization
 namespace: dev-microservices
 
 namePrefix: local-
-commonLabels:
-  env: local
-  project: microservices-demo
+labels:
+  - pairs:
+      env: local
+      project: microservices-demo
+    includeSelectors: true
 
 resources:
   - ../../base
