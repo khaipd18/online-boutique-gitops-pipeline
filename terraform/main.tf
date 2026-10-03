@@ -141,25 +141,3 @@ module "vpc_endpoints" {
 
   depends_on = [module.vpc]
 }
-
-# Allow EKS nodes to access ECR VPCE
-#resource "aws_vpc_security_group_ingress_rule" "endpoint_allow_eks_nodes" {
-#security_group_id = module.vpc_endpoints.ecr_endpoint_sg_id
-
-#description                  = "Allow HTTPS inbound from EKS Worker Nodes"
-#from_port                    = 443
-#to_port                      = 443
-#ip_protocol                  = "tcp"
-#referenced_security_group_id = module.eks.node_group_sg_id
-#}
-
-# Allow EKS nodes to pull images from ECR VPCE
-#resource "aws_vpc_security_group_egress_rule" "eks_nodes_allow_endpoint" {
-# security_group_id = module.eks.node_group_sg_id
-
-#description                  = "Allow EKS Nodes to pull images from ECR VPCE"
-#from_port                    = 443
-#to_port                      = 443
-#ip_protocol                  = "tcp"
-#referenced_security_group_id = module.vpc_endpoints.ecr_endpoint_sg_id
-#}

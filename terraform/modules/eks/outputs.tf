@@ -44,8 +44,3 @@ output "node_group_status" {
   description = "The status of the EKS node group."
   value       = aws_eks_node_group.eks_node_group.status
 }
-
-output "node_group_sg_id" {
-  description = "The security group ID associated with the EKS node group."
-  value       = aws_security_group.eks_nodes_sg.id
-}
