@@ -63,6 +63,8 @@ module "github_oidc_role_ecr" {
   custom_policy_arns  = [aws_iam_policy.ecr_push_policy.arn]
 }
 
+data "aws_caller_identity" "current" {}
+
 # Terraform state management and policies for GitHub Actions to access S3 and DynamoDB and
 data "aws_iam_policy_document" "terraform_state_permissions" {
   statement {
@@ -70,8 +72,8 @@ data "aws_iam_policy_document" "terraform_state_permissions" {
     effect  = "Allow"
     actions = ["s3:ListBucket", "s3:GetObject", "s3:PutObject", "s3:DeleteObject"]
     resources = [
-      "arn:aws:s3:::khaipd18-devops-project-tf-state",
-      "arn:aws:s3:::khaipd18-devops-project-tf-state/*"
+      "arn:aws:s3:::${var.tf_state_bucket}",
+      "arn:aws:s3:::${var.tf_state_bucket}/*"
     ]
   }
 
@@ -79,7 +81,7 @@ data "aws_iam_policy_document" "terraform_state_permissions" {
     sid       = "AllowDynamoDBLocking"
     effect    = "Allow"
     actions   = ["dynamodb:DescribeTable", "dynamodb:GetItem", "dynamodb:PutItem", "dynamodb:DeleteItem"]
-    resources = ["arn:aws:dynamodb:ap-southeast-1:797226340543:table/khaipd18-devops-project-terraform-state-lock"]
+    resources = ["arn:aws:dynamodb:${var.region}:${data.aws_caller_identity.current.account_id}:table/${var.tf_state_lock_table}"]
   }
 }
 
