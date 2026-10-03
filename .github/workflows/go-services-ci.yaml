@@ -68,9 +68,10 @@ jobs:
       - name: Download dependencies
         run: go mod download
 
+      # Pinned to the last v1 release: src/*/.golangci.yml use the v1 config format
       - name: Run Linter (golangci-lint)
         run: |
-          go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+          go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.64.8
           golangci-lint run ./...
 
       - name: Run Unit Tests
@@ -80,7 +81,7 @@ jobs:
       - name: Run Security Scan (govulncheck)
         continue-on-error: true
         run: |
-          go install golang.org/x/vuln/cmd/govulncheck@latest
+          go install golang.org/x/vuln/cmd/govulncheck@v1.8.0
           govulncheck ./...
 
       - name: Configure AWS credentials via OIDC
