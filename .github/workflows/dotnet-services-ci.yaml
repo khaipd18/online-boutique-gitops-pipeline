@@ -62,17 +62,25 @@ jobs:
       - name: Restore dependencies
         run: dotnet restore
 
+      # Non-blocking until existing formatting issues are fixed; failures show as a warning on the run
       - name: Run Linter (dotnet format)
-        run: dotnet format --verify-no-changes || echo "Code formatting issues found, please fix them later!"
+        continue-on-error: true
+        run: dotnet format --verify-no-changes --no-restore
 
+      # `dotnet list package --vulnerable` always exits 0, so fail explicitly when vulnerabilities are reported
       - name: Run Security Scan
-        run: dotnet list package --vulnerable
+        run: |
+          dotnet list package --vulnerable --include-transitive 2>&1 | tee vulnerable.txt
+          if grep -q "has the following vulnerable packages" vulnerable.txt; then
+            echo "::error::Vulnerable NuGet packages found"
+            exit 1
+          fi
 
       - name: Build Application
         run: dotnet build --no-restore --configuration Release
 
       - name: Run Unit Tests
-        run: dotnet test --no-build --configuration Release || echo "Unit tests failed or missing, but continuing for now."
+        run: dotnet test --no-build --configuration Release
 
       - name: Configure AWS credentials via OIDC
         uses: aws-actions/configure-aws-credentials@v6
