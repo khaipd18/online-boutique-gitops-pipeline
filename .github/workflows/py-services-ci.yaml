@@ -72,8 +72,13 @@ jobs:
       - name: Run Security Scan (bandit)
         run: bandit -r . -x tests/ -ll
 
+      # pytest exits with 5 when no tests are collected; treat that as skipped, fail on anything else
       - name: Run Unit Tests (pytest)
-        run: pytest || echo "No tests found or tests failed, but continuing for now."
+        run: |
+          pytest || {
+            rc=$?
+            if [ $rc -eq 5 ]; then echo "::notice::No tests found, skipping"; else exit $rc; fi
+          }
 
       - name: Configure AWS credentials via OIDC
         uses: aws-actions/configure-aws-credentials@v6
