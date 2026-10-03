@@ -14,4 +14,3 @@ skip-check:
                   # encryption cannot be changed on existing repositories, switching to KMS means recreating them
   - CKV2_AWS_1    # false positive: the rule only accepts subnet_ids on aws_network_acl and ignores
                   # aws_network_acl_association, which modules/vpc uses to attach the NACLs
-  - CKV_K8S_21    # the Helm templates set no metadata.namespace; Argo CD deploys them into dev-eks
