@@ -196,7 +196,7 @@ terraform apply -auto-approve
 Cấu hình kubectl kết nối với EKS:
 
 ```bash
-aws eks update-kubeconfig --region ap-southeast-1 --name <your-eks-cluster-name>
+aws eks update-kubeconfig --region ap-southeast-1 --name khaipd18-eks-cluster
 kubectl get nodes
 ```
 
@@ -242,7 +242,7 @@ kubectl get pods -n dev-eks
 Khi tất cả các Pod đã ở trạng thái `Running`, lấy địa chỉ truy cập ứng dụng từ LoadBalancer của Frontend:
 
 ```bash
-kubectl get svc frontend-external -n dev-eks
+kubectl get svc frontend-external-dev -n dev-eks
 ```
 
 Sử dụng URL ở cột EXTERNAL-IP để truy cập Online Boutique.
@@ -256,6 +256,41 @@ Sau khi setup ban đầu, hệ thống tự động xử lý các luồng:
 - **Dev:** Push code mới vào thư mục `src/<service-name>`.
 - **CI Pipeline:** Thực hiện test, build, push image và update tag vào thư mục `gitops/`.
 - **CD Pipeline:** Argo CD detect tag mới và sync bản release lên EKS.
+
+---
+
+### 🔁 Chuyển sang AWS account khác
+
+Account ID không hardcode trong code: workflow đọc từ repository variable `AWS_ACCOUNT_ID` (nếu chưa đặt thì dùng account cũ `797226340543`), Terraform lấy account từ credentials đang dùng.
+
+1. **Tạo state backend** trong account mới (S3 bucket + DynamoDB lock table). Tên bucket S3 là duy nhất toàn cầu; nếu đổi tên thì sửa `terraform/backend.tf` và biến `tf_state_bucket` / `tf_state_lock_table` trong `terraform/variables.tf` cho khớp.
+
+   ```bash
+   aws s3api create-bucket --bucket <state-bucket> --region ap-southeast-1 \
+     --create-bucket-configuration LocationConstraint=ap-southeast-1
+   aws s3api put-bucket-versioning --bucket <state-bucket> --versioning-configuration Status=Enabled
+   aws dynamodb create-table --table-name <lock-table> --region ap-southeast-1 \
+     --attribute-definitions AttributeName=LockID,AttributeType=S \
+     --key-schema AttributeName=LockID,KeyType=HASH --billing-mode PAY_PER_REQUEST
+   ```
+
+2. **Apply Terraform lần đầu từ máy local** bằng credentials admin của account mới. Lần đầu bắt buộc chạy local vì các IAM role OIDC cho GitHub Actions chưa tồn tại:
+
+   ```bash
+   cd terraform
+   aws sts get-caller-identity   # kiểm tra đúng account trước khi apply
+   terraform init
+   terraform plan
+   terraform apply
+   ```
+
+3. **Đặt repository variable** `AWS_ACCOUNT_ID` = account mới (Settings → Secrets and variables → Actions → Variables).
+
+4. Làm tiếp **Bước 2 → Bước 5** ở trên (kubeconfig, Argo CD, ApplicationSet).
+
+5. **Chạy tay cả 5 workflow CI** (Actions → *CI for … Services* → Run workflow) để build và push image lên ECR mới. CI tự ghi lại `image.repository` và `image.tag` trong `gitops/dev-eks/values-*.yaml`, nên không cần sửa tay URL ECR.
+
+> `k8s-manifests/overlays/aws-dev` (Kustomize, không được Argo CD sử dụng) vẫn ghi ECR của account cũ.
 
 ---
 
