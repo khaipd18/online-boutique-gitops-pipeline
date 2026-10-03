@@ -26,7 +26,7 @@ spec:
     spec:
       project: default
       source:
-        repoURL: 'https://github.com/khaipd18/devops_project.git'
+        repoURL: 'https://github.com/khaipd18/online-boutique-gitops-pipeline.git'
         targetRevision: HEAD
         path: helm-charts
         helm:
