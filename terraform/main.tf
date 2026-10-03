@@ -19,7 +19,7 @@ resource "aws_iam_openid_connect_provider" "github_core" {
 
   client_id_list = ["sts.amazonaws.com"]
 
-  thumbprint_list = ["6938fd4d98bab03faadb97b34396831e3780aea1"]
+  # thumbprint_list omitted: IAM verifies GitHub's OIDC endpoint against its trusted root CA library
 }
 
 # The policy document for ECR permissions is defined separately to keep the role definition clean and focused on the trust relationship.
