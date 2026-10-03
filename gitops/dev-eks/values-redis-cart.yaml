@@ -5,7 +5,7 @@ replicaCount: 1
 
 image:
   repository: redis
-  tag: "latest"
+  tag: "8.10.2"
   pullPolicy: IfNotPresent
 
 service:

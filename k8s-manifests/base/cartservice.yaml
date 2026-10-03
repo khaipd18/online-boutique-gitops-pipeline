@@ -82,7 +82,7 @@ spec:
           emptyDir: {}
       containers:
         - name: redis
-          image: redis
+          image: redis:8.10.2
           ports:
             - containerPort: 6379
           resources:
