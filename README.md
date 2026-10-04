@@ -26,6 +26,10 @@ Hệ thống tuân thủ nguyên tắc IaC và GitOps.
 
 ### 🛡️ Tính năng bảo mật và vận hành
 * **Zero-trust Authentication:** Dùng OIDC cấp quyền IAM cho Pod thông qua IRSA, không sử dụng long-lived credentials.
+* **Least-privilege CI/CD:** Pull request chỉ được `terraform plan` bằng role read-only; `terraform apply` và push image chỉ được phép từ nhánh `main` (khóa bằng claim `sub` trong IAM trust policy).
+* **Supply chain security:** Mọi image được quét bằng Trivy trước khi push (kết quả lên tab *Security* của GitHub, kèm SBOM CycloneDX); Checkov chặn thay đổi Terraform có lỗi cấu hình mới trước khi plan/apply.
+* **Pod hardening:** Pod chạy non-root, read-only root filesystem, drop mọi Linux capability, seccomp `RuntimeDefault`; namespace áp Pod Security Admission mức `restricted`.
+* **Network segmentation:** Mỗi service có NetworkPolicy chỉ cho phép đúng các service gọi tới nó (VPC CNI bật network policy).
 * **Auto Self-healing:** Cấu hình GitOps trên Argo CD tự động ghi đè các thay đổi thủ công trên cluster về trạng thái định nghĩa trong Git.
 
 ---
@@ -126,6 +130,7 @@ Các step kiểm tra code trước khi build:
 * **Linting/Formatting:** Check chuẩn code format (vd: `dotnet format`).
 * **Security Scanning:** Scan lỗ hổng bảo mật package dependencies.
 * **Unit Testing:** Thực thi test tự động.
+* **Image Scanning (Trivy):** Composite action `.github/actions/trivy-scan` quét image trước khi push, đẩy lỗ hổng HIGH/CRITICAL lên GitHub code scanning và lưu SBOM làm artifact. Hiện ở chế độ báo cáo (`blocking: 'false'`) vì dependency của các service chưa được nâng cấp; đổi thành `'true'` để chặn.
 
 #### 🔐 OIDC Authentication
 Runner của GitHub Actions dùng **OIDC** lấy token tạm thời từ AWS IAM để login ECR.
@@ -222,6 +227,9 @@ Apply ApplicationSet:
 
 ```bash
 cd ..
+# Namespace dev-eks với Pod Security Admission "restricted"
+kubectl apply -f gitops/argocd/namespaces.yaml
+
 # Deploy 11 Microservices
 kubectl apply -f gitops/argocd/applicationset.yaml
 
@@ -256,6 +264,16 @@ Sau khi setup ban đầu, hệ thống tự động xử lý các luồng:
 - **Dev:** Push code mới vào thư mục `src/<service-name>`.
 - **CI Pipeline:** Thực hiện test, build, push image và update tag vào thư mục `gitops/`.
 - **CD Pipeline:** Argo CD detect tag mới và sync bản release lên EKS.
+
+---
+
+### 🔀 Quy trình thay đổi hạ tầng qua Pull Request
+
+1. Tạo branch, sửa `terraform/`, mở Pull Request vào `main`.
+2. Workflow *Terraform CI/CD Pipeline* chạy Checkov (chặn nếu có lỗi cấu hình mới so với `terraform/.checkov.baseline`), sau đó `terraform plan` bằng role read-only `github-actions-terraform-plan-oidc-role`. PR từ fork không được cấp OIDC token nên chỉ chạy Checkov.
+3. Review plan trong log của workflow, merge vào `main` → `terraform apply` bằng role `github-actions-terraform-oidc-role` (chỉ assume được từ `main`).
+
+Nên bật branch protection cho `main` (Settings → Rules → Rulesets): bắt buộc qua Pull Request và yêu cầu check *Checkov Scan* pass. Lưu ý bot CI đang push thẳng tag image vào `gitops/` trên `main`: cần cho GitHub Actions bypass rule đó, hoặc đổi bot sang mở Pull Request.
 
 ---
 
