@@ -1,0 +1,17 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: namespaces
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: 'https://github.com/khaipd18/online-boutique-gitops-pipeline.git'
+    targetRevision: HEAD
+    path: gitops/namespaces
+  destination:
+    server: 'https://kubernetes.default.svc'
+  syncPolicy:
+    automated:
+      prune: false
+      selfHeal: true
