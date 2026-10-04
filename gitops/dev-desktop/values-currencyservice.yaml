@@ -41,3 +41,7 @@ probes:
       port: 7000
     initialDelaySeconds: 20
     periodSeconds: 15
+networkPolicy:
+  allowFrom:
+    - frontend
+    - checkoutservice

@@ -46,3 +46,6 @@ probes:
       port: 5050
     initialDelaySeconds: 20
     periodSeconds: 10
+networkPolicy:
+  allowFrom:
+    - frontend

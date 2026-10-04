@@ -36,3 +36,6 @@ probes:
       port: 8080
     initialDelaySeconds: 20
     periodSeconds: 20
+networkPolicy:
+  allowFrom:
+    - frontend-dev

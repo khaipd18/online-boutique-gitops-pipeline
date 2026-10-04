@@ -4,17 +4,10 @@ replicaCount: 1
 serviceAccount:
   create: true
   name: "adservice"
-podSecurityContext:
-  runAsUser: 3000
-  runAsGroup: 3000
-  fsGroup: 3000
 image:
   repository: 797226340543.dkr.ecr.ap-southeast-1.amazonaws.com/adservice
   tag: "96a060669b26798151ca03a153f63aa1af7c6c22"
   pullPolicy: Always
-securityContext:
-  allowPrivilegeEscalation: false
-  readOnlyRootFilesystem: true
 service:
   enabled: true
   type: ClusterIP
@@ -40,3 +33,6 @@ probes:
       port: 9555
     initialDelaySeconds: 20
     periodSeconds: 20
+networkPolicy:
+  allowFrom:
+    - frontend-dev

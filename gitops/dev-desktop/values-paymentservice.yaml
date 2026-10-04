@@ -42,3 +42,6 @@ probes:
       port: 50051
     initialDelaySeconds: 20
     periodSeconds: 10
+networkPolicy:
+  allowFrom:
+    - checkoutservice

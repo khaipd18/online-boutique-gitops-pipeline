@@ -39,3 +39,8 @@ probes:
       port: 3550
     initialDelaySeconds: 20
     periodSeconds: 20
+networkPolicy:
+  allowFrom:
+    - frontend-dev
+    - checkoutservice-dev
+    - recommendationservice-dev

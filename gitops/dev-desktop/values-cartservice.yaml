@@ -40,3 +40,7 @@ probes:
       port: 7070
     initialDelaySeconds: 15
     periodSeconds: 15
+networkPolicy:
+  allowFrom:
+    - frontend
+    - checkoutservice
