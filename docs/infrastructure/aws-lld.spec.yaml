@@ -37,6 +37,12 @@ pages:
                   - group: az
                     label: "AZ apse1-az1"
                     items:
+                      - group: public_subnet
+                        id: sn_pub_1
+                        label: "public_subnet (az1)"
+                        cidr: "10.18.0.0/24"
+                        items:
+                          - {id: nat, service: nat_gateway, label: "nat_gw", details: ["EIP (domain vpc)"]}
                       - group: private_subnet
                         id: sn_priv_1
                         label: "private_subnet (az1)"
@@ -44,22 +50,9 @@ pages:
                         items:
                           - {id: nodes_1, service: ec2, label: "EKS managed nodes",
                              details: ["t3.medium · AL2023", "20 GiB root volume"]}
-                      - group: public_subnet
-                        id: sn_pub_1
-                        label: "public_subnet (az1)"
-                        cidr: "10.18.0.0/24"
-                        items:
-                          - {id: nat, service: nat_gateway, label: "nat_gw", details: ["EIP (domain vpc)"]}
                   - group: az
                     label: "AZ apse1-az2"
                     items:
-                      - group: private_subnet
-                        id: sn_priv_2
-                        label: "private_subnet (az2)"
-                        cidr: "10.18.3.0/24"
-                        items:
-                          - {id: nodes_2, service: ec2, label: "EKS managed nodes",
-                             details: ["t3.medium · AL2023", "20 GiB root volume"]}
                       # No NAT gateway in AZ 2: a single NAT keeps cost down; the private
                       # route table is shared, so AZ-2 egress goes through AZ-1.
                       - group: public_subnet
@@ -67,6 +60,13 @@ pages:
                         label: "public_subnet (az2)"
                         cidr: "10.18.1.0/24"
                         items: []
+                      - group: private_subnet
+                        id: sn_priv_2
+                        label: "private_subnet (az2)"
+                        cidr: "10.18.3.0/24"
+                        items:
+                          - {id: nodes_2, service: ec2, label: "EKS managed nodes",
+                             details: ["t3.medium · AL2023", "20 GiB root volume"]}
           - group: layout
             direction: column
             items:
