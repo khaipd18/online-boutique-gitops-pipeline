@@ -85,3 +85,92 @@ pages:
       - {from: github, to: iam, label: "OIDC"}
       - {from: github, to: ecr, label: "push image"}
       - {from: eks, to: github, label: "GitOps pull", style: dashed}
+
+  # ------------------------------------------------------------- delivery pipeline
+  # Application delivery as one left-to-right chain: push -> CI (lint, test, Trivy) ->
+  # ECR, then the bot writes the image tag back to Git and Argo CD pulls it into the
+  # cluster. The Terraform path (Checkov -> plan -> apply) is on the LLD page L3.
+  - name: "02 Delivery pipeline"
+    level: hld
+    direction: row
+    items:
+      - {id: dev, service: user, label: "Developer"}
+      - {id: repo, tech: github, label: "GitHub repository", note: "src/ · gitops/"}
+      - {id: actions, tech: github, label: "GitHub Actions", note: "lint · test · Trivy"}
+      - group: aws_cloud
+        direction: column
+        items:
+          - group: region
+            label: "ap-southeast-1"
+            direction: row
+            items:
+              - {id: ecr2, service: ecr, note: "tag = git SHA"}
+              - group: eks_cluster
+                id: cluster
+                label: "Amazon EKS"
+                direction: row
+                items:
+                  - {id: apps, tech: pod, label: "Online Boutique", note: "namespace dev-eks"}
+                  - {id: argocd, tech: deployment, label: "Argo CD", note: "ApplicationSet"}
+          - {id: role, service: iam, label: "IAM role", note: "OIDC, main only"}
+    edges:
+      - {from: dev, to: repo, label: "git push"}
+      - {from: repo, to: actions, label: "trigger"}
+      - {from: actions, to: role, label: "OIDC"}
+      - {from: actions, to: ecr2, label: "push image"}
+      - {from: actions, to: repo, label: "commit image tag", style: dashed}
+      - {from: argocd, to: repo, label: "GitOps pull", style: dashed}
+      - {from: argocd, to: apps, label: "sync"}
+      - {from: apps, to: ecr2, label: "pull image"}
+
+  # ------------------------------------------------------------ in-cluster traffic
+  # gRPC call graph = the NetworkPolicy allow list in gitops/dev-eks/values-*.yaml:
+  # each arrow is an allowed ingress; anything else into a pod is denied.
+  # Three tiers: services only frontend calls (top), the main path (middle), services
+  # only checkoutservice calls (bottom). The four services that BOTH callers use are one
+  # "Shared services" group, so each caller has one arrow to it instead of four.
+  - name: "03 In-cluster traffic"
+    level: hld
+    direction: row
+    items:
+      - {id: shoppers, service: users, label: "Shoppers"}
+      - group: eks_cluster
+        label: "Amazon EKS · namespace dev-eks · one NetworkPolicy per service · arrows are gRPC"
+        columns: 4
+        items:
+          # row 1: called only by frontend
+          - {spacer: true}
+          - {id: ad, tech: pod, label: "adservice"}
+          - {id: reco, tech: pod, label: "recommendation"}
+          - {spacer: true}
+          # row 2: main path
+          - {id: lb3, tech: k8s_service, label: "frontend-external", note: "LoadBalancer"}
+          - {id: frontend, tech: pod, label: "frontend"}
+          - group: generic
+            id: shared
+            label: "Shared services"
+            columns: 2
+            items:
+              - {id: catalog, tech: pod, label: "productcatalog"}
+              - {id: currency, tech: pod, label: "currencyservice"}
+              - {id: shipping, tech: pod, label: "shippingservice"}
+              - {id: cart, tech: pod, label: "cartservice"}
+          - {id: redis, tech: pod, label: "redis-cart"}
+          # row 3: called only by checkoutservice
+          - {spacer: true}
+          - {id: checkout, tech: pod, label: "checkoutservice"}
+          - {id: payment, tech: pod, label: "paymentservice"}
+          - {id: email, tech: pod, label: "emailservice"}
+    edges:
+      - {from: shoppers, to: lb3, label: "HTTP"}
+      - {from: lb3, to: frontend}
+      # Same column: pinned straight up/down so they do not look like they start at the load balancer
+      - {from: frontend, to: ad, exit: top, entry: bottom}
+      - {from: frontend, to: reco}
+      - {from: frontend, to: shared}
+      - {from: frontend, to: checkout, exit: bottom, entry: top}
+      - {from: checkout, to: shared}
+      - {from: checkout, to: payment}
+      - {from: checkout, to: email, exit: bottom, entry: bottom}
+      - {from: reco, to: catalog}
+      - {from: cart, to: redis, label: "Redis"}
