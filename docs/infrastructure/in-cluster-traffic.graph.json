@@ -1,0 +1,198 @@
+{
+ "direction": "LR",
+ "ranksep": 1.0,
+ "nodesep": 0.45,
+ "nodes": [
+  {
+   "id": "shoppers",
+   "label": "Shoppers",
+   "style": "sketch=0;outlineConnect=0;fontColor=#232F3E;gradientColor=none;strokeColor=none;dashed=0;html=1;fontSize=11;fontStyle=0;aspect=fixed;pointerEvents=1;fillColor=#232F3D;shape=mxgraph.aws4.users;verticalLabelPosition=bottom;verticalAlign=top;labelPosition=center;align=center;html=1;fontSize=13;",
+   "width": 60,
+   "height": 60
+  },
+  {
+   "id": "lb",
+   "label": "frontend-external<br><span style='font-weight:normal;font-size:11px'>Service \u00b7 LoadBalancer</span>",
+   "style": "rounded=1;arcSize=20;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#326CE5;strokeWidth=2;fontColor=#1F4FAF;fontSize=13;fontStyle=1;",
+   "width": 190,
+   "height": 52,
+   "group": "eks",
+   "groupLabel": "Amazon EKS \u00b7 namespace dev-eks \u00b7 one NetworkPolicy per service"
+  },
+  {
+   "id": "frontend",
+   "label": "frontend",
+   "style": "rounded=1;arcSize=20;whiteSpace=wrap;html=1;fillColor=#326CE5;strokeColor=#1F4FAF;fontColor=#FFFFFF;fontSize=13;fontStyle=1;",
+   "width": 190,
+   "height": 46,
+   "group": "eks"
+  },
+  {
+   "id": "adservice",
+   "label": "adservice",
+   "style": "rounded=1;arcSize=20;whiteSpace=wrap;html=1;fillColor=#326CE5;strokeColor=#1F4FAF;fontColor=#FFFFFF;fontSize=13;fontStyle=1;",
+   "width": 190,
+   "height": 46,
+   "group": "eks"
+  },
+  {
+   "id": "recommendationservice",
+   "label": "recommendationservice",
+   "style": "rounded=1;arcSize=20;whiteSpace=wrap;html=1;fillColor=#326CE5;strokeColor=#1F4FAF;fontColor=#FFFFFF;fontSize=13;fontStyle=1;",
+   "width": 190,
+   "height": 46,
+   "group": "eks"
+  },
+  {
+   "id": "checkoutservice",
+   "label": "checkoutservice",
+   "style": "rounded=1;arcSize=20;whiteSpace=wrap;html=1;fillColor=#326CE5;strokeColor=#1F4FAF;fontColor=#FFFFFF;fontSize=13;fontStyle=1;",
+   "width": 190,
+   "height": 46,
+   "group": "eks"
+  },
+  {
+   "id": "productcatalogservice",
+   "label": "productcatalogservice",
+   "style": "rounded=1;arcSize=20;whiteSpace=wrap;html=1;fillColor=#326CE5;strokeColor=#1F4FAF;fontColor=#FFFFFF;fontSize=13;fontStyle=1;",
+   "width": 190,
+   "height": 46,
+   "group": "eks"
+  },
+  {
+   "id": "currencyservice",
+   "label": "currencyservice",
+   "style": "rounded=1;arcSize=20;whiteSpace=wrap;html=1;fillColor=#326CE5;strokeColor=#1F4FAF;fontColor=#FFFFFF;fontSize=13;fontStyle=1;",
+   "width": 190,
+   "height": 46,
+   "group": "eks"
+  },
+  {
+   "id": "cartservice",
+   "label": "cartservice",
+   "style": "rounded=1;arcSize=20;whiteSpace=wrap;html=1;fillColor=#326CE5;strokeColor=#1F4FAF;fontColor=#FFFFFF;fontSize=13;fontStyle=1;",
+   "width": 190,
+   "height": 46,
+   "group": "eks"
+  },
+  {
+   "id": "shippingservice",
+   "label": "shippingservice",
+   "style": "rounded=1;arcSize=20;whiteSpace=wrap;html=1;fillColor=#326CE5;strokeColor=#1F4FAF;fontColor=#FFFFFF;fontSize=13;fontStyle=1;",
+   "width": 190,
+   "height": 46,
+   "group": "eks"
+  },
+  {
+   "id": "paymentservice",
+   "label": "paymentservice",
+   "style": "rounded=1;arcSize=20;whiteSpace=wrap;html=1;fillColor=#326CE5;strokeColor=#1F4FAF;fontColor=#FFFFFF;fontSize=13;fontStyle=1;",
+   "width": 190,
+   "height": 46,
+   "group": "eks"
+  },
+  {
+   "id": "emailservice",
+   "label": "emailservice",
+   "style": "rounded=1;arcSize=20;whiteSpace=wrap;html=1;fillColor=#326CE5;strokeColor=#1F4FAF;fontColor=#FFFFFF;fontSize=13;fontStyle=1;",
+   "width": 190,
+   "height": 46,
+   "group": "eks"
+  },
+  {
+   "id": "redis-cart",
+   "label": "redis-cart",
+   "style": "rounded=1;arcSize=20;whiteSpace=wrap;html=1;fillColor=#E8EEFB;strokeColor=#326CE5;fontColor=#1F4FAF;fontSize=13;fontStyle=1;",
+   "width": 190,
+   "height": 46,
+   "group": "eks"
+  }
+ ],
+ "edges": [
+  {
+   "source": "shoppers",
+   "target": "lb",
+   "label": "HTTP"
+  },
+  {
+   "source": "lb",
+   "target": "frontend",
+   "label": ""
+  },
+  {
+   "source": "frontend",
+   "target": "adservice",
+   "label": ""
+  },
+  {
+   "source": "frontend",
+   "target": "recommendationservice",
+   "label": ""
+  },
+  {
+   "source": "frontend",
+   "target": "checkoutservice",
+   "label": ""
+  },
+  {
+   "source": "frontend",
+   "target": "productcatalogservice",
+   "label": ""
+  },
+  {
+   "source": "frontend",
+   "target": "currencyservice",
+   "label": ""
+  },
+  {
+   "source": "frontend",
+   "target": "cartservice",
+   "label": ""
+  },
+  {
+   "source": "frontend",
+   "target": "shippingservice",
+   "label": ""
+  },
+  {
+   "source": "checkoutservice",
+   "target": "productcatalogservice",
+   "label": ""
+  },
+  {
+   "source": "checkoutservice",
+   "target": "currencyservice",
+   "label": ""
+  },
+  {
+   "source": "checkoutservice",
+   "target": "cartservice",
+   "label": ""
+  },
+  {
+   "source": "checkoutservice",
+   "target": "shippingservice",
+   "label": ""
+  },
+  {
+   "source": "checkoutservice",
+   "target": "paymentservice",
+   "label": ""
+  },
+  {
+   "source": "checkoutservice",
+   "target": "emailservice",
+   "label": ""
+  },
+  {
+   "source": "recommendationservice",
+   "target": "productcatalogservice",
+   "label": ""
+  },
+  {
+   "source": "cartservice",
+   "target": "redis-cart",
+   "label": "Redis"
+  }
+ ]
+}

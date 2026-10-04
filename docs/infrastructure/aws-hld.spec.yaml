@@ -123,54 +123,10 @@ pages:
       - {from: argocd, to: apps, label: "sync"}
       - {from: apps, to: ecr2, label: "pull image"}
 
-  # ------------------------------------------------------------ in-cluster traffic
-  # gRPC call graph = the NetworkPolicy allow list in gitops/dev-eks/values-*.yaml:
-  # each arrow is an allowed ingress; anything else into a pod is denied.
-  # Three tiers: services only frontend calls (top), the main path (middle), services
-  # only checkoutservice calls (bottom). The four services that BOTH callers use are one
-  # "Shared services" group, so each caller has one arrow to it instead of four.
-  - name: "03 In-cluster traffic"
-    level: hld
-    direction: row
-    items:
-      - {id: shoppers, service: users, label: "Shoppers"}
-      - group: eks_cluster
-        label: "Amazon EKS · namespace dev-eks · one NetworkPolicy per service · arrows are gRPC"
-        columns: 4
-        items:
-          # row 1: called only by frontend
-          - {spacer: true}
-          - {id: ad, tech: pod, label: "adservice"}
-          - {id: reco, tech: pod, label: "recommendation"}
-          - {spacer: true}
-          # row 2: main path
-          - {id: lb3, tech: k8s_service, label: "frontend-external", note: "LoadBalancer"}
-          - {id: frontend, tech: pod, label: "frontend"}
-          - group: generic
-            id: shared
-            label: "Shared services"
-            columns: 2
-            items:
-              - {id: catalog, tech: pod, label: "productcatalog"}
-              - {id: currency, tech: pod, label: "currencyservice"}
-              - {id: shipping, tech: pod, label: "shippingservice"}
-              - {id: cart, tech: pod, label: "cartservice"}
-          - {id: redis, tech: pod, label: "redis-cart"}
-          # row 3: called only by checkoutservice
-          - {spacer: true}
-          - {id: checkout, tech: pod, label: "checkoutservice"}
-          - {id: payment, tech: pod, label: "paymentservice"}
-          - {id: email, tech: pod, label: "emailservice"}
-    edges:
-      - {from: shoppers, to: lb3, label: "HTTP"}
-      - {from: lb3, to: frontend}
-      # Same column: pinned straight up/down so they do not look like they start at the load balancer
-      - {from: frontend, to: ad, exit: top, entry: bottom}
-      - {from: frontend, to: reco}
-      - {from: frontend, to: shared}
-      - {from: frontend, to: checkout, exit: bottom, entry: top}
-      - {from: checkout, to: shared}
-      - {from: checkout, to: payment}
-      - {from: checkout, to: email, exit: bottom, entry: bottom}
-      - {from: reco, to: catalog}
-      - {from: cart, to: redis, label: "Redis"}
+  # The in-cluster traffic / NetworkPolicy diagram is a dense call graph, so it is not
+  # drawn here: the grid router of this generator runs wires along group borders and
+  # through captions. It lives in in-cluster-traffic.drawio, laid out by Graphviz with
+  # the drawio-skill (source: in-cluster-traffic.graph.json):
+  #   python3 ~/.claude/skills/drawio-skill/scripts/autolayout.py in-cluster-traffic.graph.json --tune -o in-cluster-traffic.drawio
+  # then edges set to edgeStyle=orthogonalEdgeStyle (keeping the Graphviz waypoints),
+  # the Shoppers label moved to the left and the frame title aligned left.

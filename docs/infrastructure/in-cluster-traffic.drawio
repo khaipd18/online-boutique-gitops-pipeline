@@ -1,0 +1,103 @@
+<mxfile>
+  <diagram id="autolayout" name="Page-1">
+    <mxGraphModel dx="800" dy="600" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+        <mxCell id="group_0" value="Amazon EKS · namespace dev-eks · one NetworkPolicy per service" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#6c8ebf;fontColor=#6c8ebf;verticalAlign=top;fontStyle=2;dashed=1;align=left;spacingLeft=12;" vertex="1" parent="1">
+          <mxGeometry x="6" y="106" width="1348" height="574" as="geometry"/>
+        </mxCell>
+        <mxCell id="shoppers" value="Shoppers" style="sketch=0;outlineConnect=0;fontColor=#232F3E;gradientColor=none;strokeColor=none;dashed=0;html=1;fontSize=11;fontStyle=0;aspect=fixed;pointerEvents=1;fillColor=#232F3D;shape=mxgraph.aws4.users;html=1;fontSize=13;labelPosition=left;verticalLabelPosition=middle;align=right;verticalAlign=middle;spacingRight=6;" vertex="1" parent="1">
+          <mxGeometry x="630" y="0" width="60" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="lb" value="frontend-external&lt;br&gt;&lt;span style='font-weight:normal;font-size:11px'&gt;Service · LoadBalancer&lt;/span&gt;" style="rounded=1;arcSize=20;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#326CE5;strokeWidth=2;fontColor=#1F4FAF;fontSize=13;fontStyle=1;" vertex="1" parent="group_0">
+          <mxGeometry x="564" y="24" width="190" height="52" as="geometry"/>
+        </mxCell>
+        <mxCell id="frontend" value="frontend" style="rounded=1;arcSize=20;whiteSpace=wrap;html=1;fillColor=#326CE5;strokeColor=#1F4FAF;fontColor=#FFFFFF;fontSize=13;fontStyle=1;" vertex="1" parent="group_0">
+          <mxGeometry x="564" y="154" width="190" height="46" as="geometry"/>
+        </mxCell>
+        <mxCell id="adservice" value="adservice" style="rounded=1;arcSize=20;whiteSpace=wrap;html=1;fillColor=#326CE5;strokeColor=#1F4FAF;fontColor=#FFFFFF;fontSize=13;fontStyle=1;" vertex="1" parent="group_0">
+          <mxGeometry x="84" y="264" width="190" height="46" as="geometry"/>
+        </mxCell>
+        <mxCell id="recommendationservice" value="recommendationservice" style="rounded=1;arcSize=20;whiteSpace=wrap;html=1;fillColor=#326CE5;strokeColor=#1F4FAF;fontColor=#FFFFFF;fontSize=13;fontStyle=1;" vertex="1" parent="group_0">
+          <mxGeometry x="304" y="264" width="190" height="46" as="geometry"/>
+        </mxCell>
+        <mxCell id="checkoutservice" value="checkoutservice" style="rounded=1;arcSize=20;whiteSpace=wrap;html=1;fillColor=#326CE5;strokeColor=#1F4FAF;fontColor=#FFFFFF;fontSize=13;fontStyle=1;" vertex="1" parent="group_0">
+          <mxGeometry x="564" y="264" width="190" height="46" as="geometry"/>
+        </mxCell>
+        <mxCell id="productcatalogservice" value="productcatalogservice" style="rounded=1;arcSize=20;whiteSpace=wrap;html=1;fillColor=#326CE5;strokeColor=#1F4FAF;fontColor=#FFFFFF;fontSize=13;fontStyle=1;" vertex="1" parent="group_0">
+          <mxGeometry x="24" y="384" width="190" height="46" as="geometry"/>
+        </mxCell>
+        <mxCell id="currencyservice" value="currencyservice" style="rounded=1;arcSize=20;whiteSpace=wrap;html=1;fillColor=#326CE5;strokeColor=#1F4FAF;fontColor=#FFFFFF;fontSize=13;fontStyle=1;" vertex="1" parent="group_0">
+          <mxGeometry x="694" y="384" width="190" height="46" as="geometry"/>
+        </mxCell>
+        <mxCell id="cartservice" value="cartservice" style="rounded=1;arcSize=20;whiteSpace=wrap;html=1;fillColor=#326CE5;strokeColor=#1F4FAF;fontColor=#FFFFFF;fontSize=13;fontStyle=1;" vertex="1" parent="group_0">
+          <mxGeometry x="914" y="384" width="190" height="46" as="geometry"/>
+        </mxCell>
+        <mxCell id="shippingservice" value="shippingservice" style="rounded=1;arcSize=20;whiteSpace=wrap;html=1;fillColor=#326CE5;strokeColor=#1F4FAF;fontColor=#FFFFFF;fontSize=13;fontStyle=1;" vertex="1" parent="group_0">
+          <mxGeometry x="1134" y="384" width="190" height="46" as="geometry"/>
+        </mxCell>
+        <mxCell id="paymentservice" value="paymentservice" style="rounded=1;arcSize=20;whiteSpace=wrap;html=1;fillColor=#326CE5;strokeColor=#1F4FAF;fontColor=#FFFFFF;fontSize=13;fontStyle=1;" vertex="1" parent="group_0">
+          <mxGeometry x="244" y="384" width="190" height="46" as="geometry"/>
+        </mxCell>
+        <mxCell id="emailservice" value="emailservice" style="rounded=1;arcSize=20;whiteSpace=wrap;html=1;fillColor=#326CE5;strokeColor=#1F4FAF;fontColor=#FFFFFF;fontSize=13;fontStyle=1;" vertex="1" parent="group_0">
+          <mxGeometry x="474" y="384" width="190" height="46" as="geometry"/>
+        </mxCell>
+        <mxCell id="redis-cart" value="redis-cart" style="rounded=1;arcSize=20;whiteSpace=wrap;html=1;fillColor=#E8EEFB;strokeColor=#326CE5;fontColor=#1F4FAF;fontSize=13;fontStyle=1;" vertex="1" parent="group_0">
+          <mxGeometry x="914" y="504" width="190" height="46" as="geometry"/>
+        </mxCell>
+        <mxCell id="e0" value="HTTP" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;rounded=0;" edge="1" parent="1" source="shoppers" target="lb">
+          <mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="660" y="60"/><mxPoint x="660" y="120"/></Array></mxGeometry>
+        </mxCell>
+        <mxCell id="e1" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;rounded=0;" edge="1" parent="1" source="lb" target="frontend">
+          <mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="660" y="180"/><mxPoint x="660" y="250"/></Array></mxGeometry>
+        </mxCell>
+        <mxCell id="e2" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;rounded=0;" edge="1" parent="1" source="frontend" target="adservice">
+          <mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="430" y="280"/><mxPoint x="190" y="280"/><mxPoint x="190" y="280"/><mxPoint x="190" y="280"/><mxPoint x="190" y="360"/></Array></mxGeometry>
+        </mxCell>
+        <mxCell id="e3" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;rounded=0;" edge="1" parent="1" source="frontend" target="recommendationservice">
+          <mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="500" y="290"/><mxPoint x="410" y="290"/><mxPoint x="410" y="290"/><mxPoint x="410" y="290"/><mxPoint x="410" y="360"/></Array></mxGeometry>
+        </mxCell>
+        <mxCell id="e4" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;rounded=0;" edge="1" parent="1" source="frontend" target="checkoutservice">
+          <mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="660" y="300"/><mxPoint x="660" y="360"/></Array></mxGeometry>
+        </mxCell>
+        <mxCell id="e5" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;rounded=0;" edge="1" parent="1" source="frontend" target="productcatalogservice">
+          <mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="400" y="270"/><mxPoint x="60" y="270"/><mxPoint x="60" y="270"/><mxPoint x="60" y="270"/><mxPoint x="60" y="480"/></Array></mxGeometry>
+        </mxCell>
+        <mxCell id="e6" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;rounded=0;" edge="1" parent="1" source="frontend" target="currencyservice">
+          <mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="790" y="290"/><mxPoint x="820" y="290"/><mxPoint x="820" y="290"/><mxPoint x="820" y="290"/><mxPoint x="820" y="480"/></Array></mxGeometry>
+        </mxCell>
+        <mxCell id="e7" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;rounded=0;" edge="1" parent="1" source="frontend" target="cartservice">
+          <mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="870" y="280"/><mxPoint x="1050" y="280"/><mxPoint x="1050" y="280"/><mxPoint x="1050" y="280"/><mxPoint x="1050" y="480"/></Array></mxGeometry>
+        </mxCell>
+        <mxCell id="e8" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;rounded=0;" edge="1" parent="1" source="frontend" target="shippingservice">
+          <mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="930" y="270"/><mxPoint x="1270" y="270"/><mxPoint x="1270" y="270"/><mxPoint x="1270" y="270"/><mxPoint x="1270" y="480"/></Array></mxGeometry>
+        </mxCell>
+        <mxCell id="e9" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;rounded=0;" edge="1" parent="1" source="checkoutservice" target="productcatalogservice">
+          <mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="590" y="440"/><mxPoint x="590" y="460"/><mxPoint x="590" y="460"/><mxPoint x="590" y="460"/><mxPoint x="180" y="460"/><mxPoint x="180" y="460"/><mxPoint x="180" y="460"/><mxPoint x="180" y="480"/></Array></mxGeometry>
+        </mxCell>
+        <mxCell id="e10" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;rounded=0;" edge="1" parent="1" source="checkoutservice" target="currencyservice">
+          <mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="730" y="420"/><mxPoint x="730" y="480"/></Array></mxGeometry>
+        </mxCell>
+        <mxCell id="e11" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;rounded=0;" edge="1" parent="1" source="checkoutservice" target="cartservice">
+          <mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="850" y="400"/><mxPoint x="980" y="400"/><mxPoint x="980" y="400"/><mxPoint x="980" y="400"/><mxPoint x="980" y="480"/></Array></mxGeometry>
+        </mxCell>
+        <mxCell id="e12" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;rounded=0;" edge="1" parent="1" source="checkoutservice" target="shippingservice">
+          <mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="920" y="390"/><mxPoint x="1210" y="390"/><mxPoint x="1210" y="390"/><mxPoint x="1210" y="390"/><mxPoint x="1210" y="480"/></Array></mxGeometry>
+        </mxCell>
+        <mxCell id="e13" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;rounded=0;" edge="1" parent="1" source="checkoutservice" target="paymentservice">
+          <mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="620" y="440"/><mxPoint x="620" y="470"/><mxPoint x="620" y="470"/><mxPoint x="620" y="470"/><mxPoint x="400" y="470"/><mxPoint x="400" y="470"/><mxPoint x="400" y="470"/><mxPoint x="400" y="480"/></Array></mxGeometry>
+        </mxCell>
+        <mxCell id="e14" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;rounded=0;" edge="1" parent="1" source="checkoutservice" target="emailservice">
+          <mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="640" y="420"/><mxPoint x="640" y="480"/></Array></mxGeometry>
+        </mxCell>
+        <mxCell id="e15" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;rounded=0;" edge="1" parent="1" source="recommendationservice" target="productcatalogservice">
+          <mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="360" y="430"/><mxPoint x="360" y="440"/><mxPoint x="360" y="440"/><mxPoint x="360" y="440"/><mxPoint x="140" y="440"/><mxPoint x="140" y="440"/><mxPoint x="140" y="440"/><mxPoint x="140" y="480"/></Array></mxGeometry>
+        </mxCell>
+        <mxCell id="e16" value="Redis" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;rounded=0;" edge="1" parent="1" source="cartservice" target="redis-cart">
+          <mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="1010" y="540"/><mxPoint x="1010" y="600"/></Array></mxGeometry>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
