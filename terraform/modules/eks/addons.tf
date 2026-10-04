@@ -5,6 +5,11 @@ resource "aws_eks_addon" "vpc_cni" {
   addon_version               = var.cni_version
   resolve_conflicts_on_update = "OVERWRITE"
   service_account_role_arn    = aws_iam_role.vpc_cni_irsa.arn
+
+  # Enforce Kubernetes NetworkPolicy (the Helm chart ships one per service)
+  configuration_values = jsonencode({
+    enableNetworkPolicy = "true"
+  })
 }
 
 resource "aws_eks_addon" "core_dns" {
