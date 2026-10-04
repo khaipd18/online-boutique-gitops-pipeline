@@ -27,5 +27,29 @@ probes: {}
 volumes: []
 volumeMounts: []
 
-podSecurityContext: {}
-securityContext: {}
+# Secure by default: satisfies the Pod Security "restricted" profile. Services can override individual fields.
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 10001
+  runAsGroup: 10001
+  fsGroup: 10001
+  seccompProfile:
+    type: RuntimeDefault
+
+securityContext:
+  allowPrivilegeEscalation: false
+  privileged: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop:
+      - ALL
+
+# None of the services call the Kubernetes API
+automountServiceAccountToken: false
+
+networkPolicy:
+  enabled: true
+  # app labels (release names) of the pods allowed to connect to service.targetPort; empty denies all ingress
+  allowFrom: []
+  # allow ingress from any source on service.targetPort (e.g. a pod exposed through a LoadBalancer)
+  allowFromAnywhere: false

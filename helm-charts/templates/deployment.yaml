@@ -19,6 +19,7 @@ spec:
       {{- if .Values.serviceAccount.create }}
       serviceAccountName: {{ .Values.serviceAccount.name | default .Release.Name }}
       {{- end }}
+      automountServiceAccountToken: {{ .Values.automountServiceAccountToken }}
 
       {{- if .Values.podSecurityContext }}
       securityContext:
