@@ -1,0 +1,70 @@
+name: 'Trivy image scan'
+description: 'Scan a locally built image with Trivy, publish HIGH/CRITICAL findings to code scanning and upload a CycloneDX SBOM'
+
+inputs:
+  image:
+    description: 'Image reference to scan (must exist in the local Docker daemon)'
+    required: true
+  name:
+    description: 'Short name used for the report directory, SARIF category and artifact name'
+    required: true
+  blocking:
+    description: 'Fail the step when fixable HIGH/CRITICAL vulnerabilities are found'
+    required: false
+    default: 'false'
+  trivy-version:
+    description: 'Trivy container image version'
+    required: false
+    default: '0.75.0'
+
+runs:
+  using: 'composite'
+  steps:
+    # One scan produces every report: vulnerabilities with a fix available, plus the full package list for the SBOM
+    - name: Scan image
+      shell: bash
+      env:
+        IMAGE: ${{ inputs.image }}
+        NAME: ${{ inputs.name }}
+        TRIVY_VERSION: ${{ inputs.trivy-version }}
+      run: |
+        OUT="$GITHUB_WORKSPACE/trivy-reports/$NAME"
+        mkdir -p "$OUT"
+        TRIVY="docker run --rm -v trivy-cache:/root/.cache/ -v $OUT:/out aquasec/trivy:$TRIVY_VERSION"
+        docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v trivy-cache:/root/.cache/ -v "$OUT:/out" \
+          "aquasec/trivy:$TRIVY_VERSION" image --quiet --scanners vuln --ignore-unfixed --list-all-pkgs \
+          --format json --output /out/trivy.json "$IMAGE"
+        $TRIVY convert --format cyclonedx --output /out/sbom.cdx.json /out/trivy.json
+        $TRIVY convert --format sarif --severity HIGH,CRITICAL --output /out/trivy.sarif /out/trivy.json
+        $TRIVY convert --format table --scanners vuln --severity HIGH,CRITICAL /out/trivy.json
+
+    - name: Upload SBOM
+      uses: actions/upload-artifact@v7
+      with:
+        name: sbom-${{ inputs.name }}
+        path: trivy-reports/${{ inputs.name }}/sbom.cdx.json
+        retention-days: 30
+
+    - name: Upload findings to code scanning
+      uses: github/codeql-action/upload-sarif@v4
+      with:
+        sarif_file: trivy-reports/${{ inputs.name }}/trivy.sarif
+        category: trivy-${{ inputs.name }}
+
+    - name: Evaluate findings
+      shell: bash
+      env:
+        NAME: ${{ inputs.name }}
+        BLOCKING: ${{ inputs.blocking }}
+      run: |
+        REPORT="$GITHUB_WORKSPACE/trivy-reports/$NAME/trivy.json"
+        CRITICAL=$(jq '[.Results[]?.Vulnerabilities[]? | select(.Severity == "CRITICAL")] | length' "$REPORT")
+        HIGH=$(jq '[.Results[]?.Vulnerabilities[]? | select(.Severity == "HIGH")] | length' "$REPORT")
+        echo "### Trivy: $NAME — $CRITICAL critical, $HIGH high (fix available)" >> "$GITHUB_STEP_SUMMARY"
+        if [ $((CRITICAL + HIGH)) -gt 0 ]; then
+          if [ "$BLOCKING" = "true" ]; then
+            echo "::error title=Trivy $NAME::$CRITICAL critical and $HIGH high vulnerabilities with a fix available"
+            exit 1
+          fi
+          echo "::warning title=Trivy $NAME::$CRITICAL critical and $HIGH high vulnerabilities with a fix available (not blocking yet, see the Security tab)"
+        fi
