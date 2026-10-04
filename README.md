@@ -47,7 +47,7 @@ One question drove the whole project: *"If this were a real production system, h
 
 ![AWS high-level architecture](docs/infrastructure/images/aws-hld.png)
 
-Worker nodes live entirely in private subnets. Traffic to ECR, STS and S3 (where ECR stores image layers) goes through VPC endpoints, so it neither detours through the NAT Gateway nor leaves for the internet ([ECR VPC endpoints](https://docs.aws.amazon.com/AmazonECR/latest/userguide/vpc-endpoints.html)). Subnets are pinned by AZ ID (`apse1-az1`, `apse1-az2`) because AZ names map differently in every account. A single NAT Gateway shared by both AZs is a deliberate cost trade-off for a dev environment.
+Inbound traffic enters through the Internet Gateway to the load balancer in the public subnets, which forwards it to the EKS worker nodes in the private subnets ([inbound traffic path](https://docs.aws.amazon.com/prescriptive-guidance/latest/load-balancer-stickiness/subnets-routing.html)). Worker nodes live entirely in private subnets. Traffic to ECR, STS and S3 (where ECR stores image layers) goes through VPC endpoints, so it neither detours through the NAT Gateway nor leaves for the internet ([ECR VPC endpoints](https://docs.aws.amazon.com/AmazonECR/latest/userguide/vpc-endpoints.html)). Subnets are pinned by AZ ID (`apse1-az1`, `apse1-az2`) because AZ names map differently in every account. A single NAT Gateway shared by both AZs is a deliberate cost trade-off for a dev environment.
 
 <details>
 <summary><b>Low-level design: network, security groups, CI/CD and IAM OIDC</b></summary>

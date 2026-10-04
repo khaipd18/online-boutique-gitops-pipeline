@@ -47,7 +47,7 @@ Câu hỏi dẫn dắt cả dự án là: *"Nếu đây là hệ thống product
 
 ![AWS high-level architecture](docs/infrastructure/images/aws-hld.png)
 
-Worker node nằm hoàn toàn trong private subnet. Traffic tới ECR, STS và S3 (nơi ECR lưu image layer) đi qua VPC endpoint, nên vừa không phải vòng qua NAT Gateway vừa không ra internet ([ECR VPC endpoints](https://docs.aws.amazon.com/AmazonECR/latest/userguide/vpc-endpoints.html)). Subnet được ghim theo AZ ID (`apse1-az1`, `apse1-az2`) vì tên AZ ánh xạ khác nhau giữa các tài khoản. Một NAT Gateway dùng chung cho cả hai AZ là đánh đổi có chủ đích để tiết kiệm chi phí ở môi trường dev.
+Traffic từ internet đi vào qua Internet Gateway tới load balancer nằm trong public subnet, rồi được chuyển tới các EKS worker node trong private subnet ([inbound traffic path](https://docs.aws.amazon.com/prescriptive-guidance/latest/load-balancer-stickiness/subnets-routing.html)). Worker node nằm hoàn toàn trong private subnet. Traffic tới ECR, STS và S3 (nơi ECR lưu image layer) đi qua VPC endpoint, nên vừa không phải vòng qua NAT Gateway vừa không ra internet ([ECR VPC endpoints](https://docs.aws.amazon.com/AmazonECR/latest/userguide/vpc-endpoints.html)). Subnet được ghim theo AZ ID (`apse1-az1`, `apse1-az2`) vì tên AZ ánh xạ khác nhau giữa các tài khoản. Một NAT Gateway dùng chung cho cả hai AZ là đánh đổi có chủ đích để tiết kiệm chi phí ở môi trường dev.
 
 <details>
 <summary><b>Low-level design: network, security groups, CI/CD và IAM OIDC</b></summary>
