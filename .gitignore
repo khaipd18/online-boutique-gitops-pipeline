@@ -49,3 +49,6 @@ terraform.rc
 # Checkov scan artifacts (.github/workflows/security-scan.yaml)
 rendered/
 checkov-report
+
+# Trivy reports (.github/actions/trivy-scan)
+trivy-reports/

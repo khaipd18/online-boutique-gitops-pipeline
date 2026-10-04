@@ -50,6 +50,7 @@ jobs:
     permissions:
       id-token: write 
       contents: write
+      security-events: write # upload Trivy findings to code scanning
     
     strategy:
       fail-fast: false
@@ -102,21 +103,41 @@ jobs:
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Build and Push Image
+      - name: Build Image
+        id: build
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          ECR_REPOSITORY: ${{ matrix.service }} 
+          ECR_REPOSITORY: ${{ matrix.service }}
           IMAGE_TAG: ${{ github.event.inputs.custom_tag || github.sha }}
         run: |
-          # ECR tags are immutable: re-running CI for the same commit must not push the same tag again
-          if docker manifest inspect "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" > /dev/null 2>&1; then
-            echo "::notice::$ECR_REPOSITORY:$IMAGE_TAG already exists in ECR, skipping build and push"
+          IMAGE="$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
+          {
+            echo "IMAGE=$IMAGE"
+            echo "NEW_TAG=$IMAGE_TAG"
+            echo "FULL_REPO=$ECR_REGISTRY/$ECR_REPOSITORY"
+          } >> "$GITHUB_ENV"
+
+          # ECR tags are immutable: re-running CI for the same commit must not build and push the same tag again
+          if docker manifest inspect "$IMAGE" > /dev/null 2>&1; then
+            echo "::notice::$ECR_REPOSITORY:$IMAGE_TAG already exists in ECR, skipping build, scan and push"
+            echo "exists=true" >> "$GITHUB_OUTPUT"
           else
-            docker build -t "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" .
-            docker push "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
+            docker build -t "$IMAGE" .
+            echo "exists=false" >> "$GITHUB_OUTPUT"
           fi
-          echo "NEW_TAG=$IMAGE_TAG" >> $GITHUB_ENV
-          echo "FULL_REPO=$ECR_REGISTRY/$ECR_REPOSITORY" >> $GITHUB_ENV
+
+      # Scan before pushing; set blocking to 'true' once the service dependencies are upgraded
+      - name: Scan Image (Trivy)
+        if: steps.build.outputs.exists == 'false'
+        uses: ./.github/actions/trivy-scan
+        with:
+          image: ${{ env.IMAGE }}
+          name: ${{ matrix.service }}
+          blocking: 'false'
+
+      - name: Push Image
+        if: steps.build.outputs.exists == 'false'
+        run: docker push "$IMAGE"
 
       - name: Update GitOps and Push Back
         working-directory: . 
