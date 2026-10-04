@@ -54,10 +54,16 @@ resource "aws_iam_policy" "ecr_push_policy" {
   policy      = data.aws_iam_policy_document.ecr_permissions.json
 }
 
+locals {
+  github_oidc_repos = compact([var.github_repo, var.github_repo_immutable])
+}
+
+# Image builds run only from main (push or manual run)
 module "github_oidc_role_ecr" {
   source              = "./modules/github-oidc-role"
   role_name           = "github-actions-ecr-oidc-role"
-  github_repo         = var.github_repo
+  github_repos        = local.github_oidc_repos
+  allowed_subjects    = ["ref:refs/heads/main"]
   oidc_provider_arn   = aws_iam_openid_connect_provider.github_core.arn
   ecr_repository_arns = module.ecr.repository_arns
   custom_policy_arns  = [aws_iam_policy.ecr_push_policy.arn]
@@ -85,21 +91,61 @@ data "aws_iam_policy_document" "terraform_state_permissions" {
   }
 }
 
+# Read-only state access for terraform plan on pull requests (plan runs with -lock=false, so no lock writes)
+data "aws_iam_policy_document" "terraform_state_read_permissions" {
+  statement {
+    sid       = "AllowS3StateRead"
+    effect    = "Allow"
+    actions   = ["s3:ListBucket", "s3:GetObject"]
+    resources = ["arn:aws:s3:::${var.tf_state_bucket}", "arn:aws:s3:::${var.tf_state_bucket}/*"]
+  }
+
+  statement {
+    sid       = "AllowDynamoDBStateDigestRead"
+    effect    = "Allow"
+    actions   = ["dynamodb:DescribeTable", "dynamodb:GetItem"]
+    resources = ["arn:aws:dynamodb:${var.region}:${data.aws_caller_identity.current.account_id}:table/${var.tf_state_lock_table}"]
+  }
+}
+
+resource "aws_iam_policy" "terraform_state_read_policy" {
+  name        = "GitHubActions-Terraform-State-Read-Policy"
+  description = "Read-only access to the Terraform state for terraform plan on pull requests"
+  policy      = data.aws_iam_policy_document.terraform_state_read_permissions.json
+}
+
 resource "aws_iam_policy" "terraform_state_policy" {
   name        = "GitHubActions-Terraform-State-Policy"
   description = "Permissions for GitHub Actions to manage Terraform state in S3 and DynamoDB"
   policy      = data.aws_iam_policy_document.terraform_state_permissions.json
 }
 
+# terraform apply: admin, only from main (after review and merge)
 module "github_oidc_role_terraform" {
   source              = "./modules/github-oidc-role"
   role_name           = "github-actions-terraform-oidc-role"
-  github_repo         = var.github_repo
+  github_repos        = local.github_oidc_repos
+  allowed_subjects    = ["ref:refs/heads/main"]
   oidc_provider_arn   = aws_iam_openid_connect_provider.github_core.arn
   ecr_repository_arns = []
   custom_policy_arns = [
     aws_iam_policy.terraform_state_policy.arn,
     "arn:aws:iam::aws:policy/AdministratorAccess"
+  ]
+}
+
+# terraform plan on pull requests: read-only. ReadOnlyAccess can also read data in S3/DynamoDB; acceptable because
+# GitHub does not issue OIDC tokens to pull requests from forks, so only collaborators with write access can assume it.
+module "github_oidc_role_terraform_plan" {
+  source              = "./modules/github-oidc-role"
+  role_name           = "github-actions-terraform-plan-oidc-role"
+  github_repos        = local.github_oidc_repos
+  allowed_subjects    = ["pull_request"]
+  oidc_provider_arn   = aws_iam_openid_connect_provider.github_core.arn
+  ecr_repository_arns = []
+  custom_policy_arns = [
+    aws_iam_policy.terraform_state_read_policy.arn,
+    "arn:aws:iam::aws:policy/ReadOnlyAccess"
   ]
 }
 

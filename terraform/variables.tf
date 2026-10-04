@@ -73,6 +73,14 @@ variable "github_repo" {
   default     = "khaipd18/online-boutique-gitops-pipeline"
 }
 
+# GitHub uses an immutable sub format (owner@<owner-id>/repo@<repo-id>) for repositories created, renamed or
+# transferred after 2026-07-15. This repo was renamed, so both formats are trusted. Set to "" to trust only github_repo.
+variable "github_repo_immutable" {
+  description = "The GitHub repository in the immutable OIDC sub format 'owner@owner_id/repo@repo_id'"
+  type        = string
+  default     = "khaipd18@174919444/online-boutique-gitops-pipeline@1204916149"
+}
+
 #eks configuration
 # EKS cluster variables
 variable "eks_cluster_name" {

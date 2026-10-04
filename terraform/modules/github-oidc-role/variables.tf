@@ -3,9 +3,14 @@ variable "role_name" {
   type        = string
 }
 
-variable "github_repo" {
-  description = "The GitHub repository in the format 'owner/repo' that will be allowed to assume the role"
-  type        = string
+variable "github_repos" {
+  description = "The GitHub repository as it appears in the OIDC sub claim: 'owner/repo' and/or the immutable 'owner@id/repo@id' format"
+  type        = list(string)
+}
+
+variable "allowed_subjects" {
+  description = "The parts of the sub claim allowed after 'repo:<repo>:', e.g. 'ref:refs/heads/main' or 'pull_request'"
+  type        = list(string)
 }
 
 variable "oidc_provider_arn" {

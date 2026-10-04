@@ -16,11 +16,12 @@ data "aws_iam_policy_document" "github_assume_role" {
       values   = ["sts.amazonaws.com"]
     }
 
-    # The "sub" claim in the OIDC token must match the specified GitHub repository
+    # The "sub" claim must exactly match one of the allowed repository/trigger combinations,
+    # e.g. repo:owner/repo:ref:refs/heads/main or repo:owner/repo:pull_request
     condition {
-      test     = "StringLike"
+      test     = "StringEquals"
       variable = "token.actions.githubusercontent.com:sub"
-      values   = ["repo:${var.github_repo}:*"]
+      values   = flatten([for repo in var.github_repos : [for subject in var.allowed_subjects : "repo:${repo}:${subject}"]])
     }
   }
 }
