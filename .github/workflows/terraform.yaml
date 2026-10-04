@@ -11,7 +11,6 @@ on:
       - 'terraform/**'
 
 permissions:
-  id-token: write
   contents: read
 
 env:
@@ -46,8 +45,18 @@ jobs:
   terraform:
     name: 'Terraform Core Workflow'
     needs: checkov
+    # GitHub does not issue OIDC tokens to pull requests from forks, so only plan PRs from this repository
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
-    
+    permissions:
+      id-token: write
+      contents: read
+
+    # Never run two applies at once; a newer push to the same PR cancels its older plan
+    concurrency:
+      group: terraform-${{ github.event_name == 'push' && 'apply' || github.ref }}
+      cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
     defaults:
       run:
         working-directory: ./terraform
@@ -59,7 +68,8 @@ jobs:
     - name: Configure AWS Credentials
       uses: aws-actions/configure-aws-credentials@v6
       with:
-        role-to-assume: arn:aws:iam::${{ env.AWS_ACCOUNT_ID }}:role/github-actions-terraform-oidc-role
+        # Pull requests get the read-only plan role; only main gets the apply role (enforced by the IAM trust policies)
+        role-to-assume: arn:aws:iam::${{ env.AWS_ACCOUNT_ID }}:role/${{ github.event_name == 'pull_request' && 'github-actions-terraform-plan-oidc-role' || 'github-actions-terraform-oidc-role' }}
         aws-region: ap-southeast-1
 
     - name: Setup Terraform
@@ -76,9 +86,10 @@ jobs:
     - name: Terraform Validate
       run: terraform validate -no-color
 
+    # The plan role has no write access to the lock table, so plan runs without taking the state lock
     - name: Terraform Plan
       if: github.event_name == 'pull_request'
-      run: terraform plan -no-color
+      run: terraform plan -no-color -input=false -lock=false
 
     - name: Terraform Apply
       if: github.ref == 'refs/heads/main' && github.event_name == 'push'
