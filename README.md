@@ -43,39 +43,28 @@ Câu hỏi dẫn dắt cả dự án là: *"Nếu đây là hệ thống product
 
 ### Hạ tầng trên AWS
 
-```mermaid
-flowchart LR
-    user((User)) --> lb
-    gha["GitHub Actions"] -->|"OIDC"| iam
+![AWS high-level architecture](docs/infrastructure/images/aws-hld.png)
 
-    subgraph aws["AWS account · ap-southeast-1"]
-        subgraph vpc["VPC 10.18.0.0/16 · 2 Availability Zones"]
-            subgraph pub["Public subnets"]
-                lb["Load Balancer<br/>frontend-external"]
-                nat["NAT Gateway"]
-            end
-            subgraph priv["Private subnets"]
-                nodes["EKS managed node group<br/>2 × t3.medium · AL2023"]
-                vpce["Interface endpoints<br/>ecr.api · ecr.dkr · sts"]
-            end
-            s3gw["S3 gateway endpoint"]
-        end
-        eks["EKS control plane 1.35<br/>VPC CNI · CoreDNS · kube-proxy"]
-        iam["IAM roles<br/>GitHub OIDC · IRSA"]
-        ecr[("Amazon ECR<br/>10 repositories")]
-        state[("S3 + DynamoDB<br/>Terraform state")]
-    end
+Worker node nằm hoàn toàn trong private subnet. Traffic tới ECR, STS và S3 (nơi ECR lưu image layer) đi qua VPC endpoint, nên vừa không phải vòng qua NAT Gateway vừa không ra internet ([ECR VPC endpoints](https://docs.aws.amazon.com/AmazonECR/latest/userguide/vpc-endpoints.html)). Subnet được ghim theo AZ ID (`apse1-az1`, `apse1-az2`) vì tên AZ ánh xạ khác nhau giữa các tài khoản. Một NAT Gateway dùng chung cho cả hai AZ là đánh đổi có chủ đích để tiết kiệm chi phí ở môi trường dev.
 
-    lb --> nodes
-    nodes <--> eks
-    nodes --> vpce -->|"PrivateLink"| ecr
-    nodes -->|"image layers"| s3gw
-    nodes -->|"egress"| nat
-    iam -->|"push image"| ecr
-    iam -->|"terraform plan / apply"| state
-```
+<details>
+<summary><b>Low-level design: network, security groups, CI/CD và IAM OIDC</b></summary>
+<br>
 
-Worker node nằm hoàn toàn trong private subnet. Traffic tới ECR, STS và S3 (nơi ECR lưu image layer) đi qua VPC endpoint, nên vừa không phải vòng qua NAT Gateway vừa không ra internet ([ECR VPC endpoints](https://docs.aws.amazon.com/AmazonECR/latest/userguide/vpc-endpoints.html)).
+**Network detail**: CIDR từng subnet, route table, VPC endpoint, NACL.
+
+![AWS LLD network](docs/infrastructure/images/aws-lld-network.png)
+
+**Security group flow**: luồng traffic kèm port, bảng rule inbound của từng security group.
+
+![AWS LLD security groups](docs/infrastructure/images/aws-lld-security-groups.png)
+
+**CI/CD và IAM OIDC**: role nào được assume từ đâu, quyền gì, tác động lên tài nguyên nào.
+
+![AWS LLD CI/CD and IAM](docs/infrastructure/images/aws-lld-cicd-iam.png)
+
+File gốc chỉnh sửa được bằng draw.io: [`aws-hld.drawio`](docs/infrastructure/aws-hld.drawio), [`aws-lld.drawio`](docs/infrastructure/aws-lld.drawio). Sơ đồ được sinh từ spec YAML ([`aws-hld.spec.yaml`](docs/infrastructure/aws-hld.spec.yaml), [`aws-lld.spec.yaml`](docs/infrastructure/aws-lld.spec.yaml)) với giá trị lấy trực tiếp từ `terraform/`.
+</details>
 
 ### Từ commit tới cluster
 
@@ -388,6 +377,8 @@ Những gì mình sẽ làm tiếp, xếp theo mức ưu tiên:
 
 - [ ] Nâng dependency của các service (có thể tự động bằng Dependabot) rồi bật `blocking: 'true'` cho Trivy, `govulncheck`, `npm audit`.
 - [ ] Giới hạn EKS public endpoint (hiện mở `0.0.0.0/0`) hoặc chuyển hẳn sang private endpoint.
+- [ ] Thu hẹp `ecr-endpoint-sg` từ mọi giao thức về `tcp/443` từ VPC (phát hiện khi vẽ LLD security group).
+- [ ] Một NAT Gateway cho mỗi AZ khi lên production (hiện dùng chung một NAT để tiết kiệm chi phí).
 - [ ] Quản lý secret tập trung bằng External Secrets Operator + AWS Secrets Manager.
 - [ ] Pin image theo digest, ký image bằng cosign và verify ở admission.
 - [ ] Thay Classic Load Balancer mặc định bằng AWS Load Balancer Controller (NLB/ALB).
@@ -404,6 +395,7 @@ online-boutique-gitops-pipeline/
 ├── .github/
 │   ├── actions/trivy-scan/   # Composite action: image scan, SARIF, SBOM
 │   └── workflows/            # CI theo ngôn ngữ, Terraform, Security Scan
+├── docs/infrastructure/       # Sơ đồ HLD/LLD (draw.io + spec YAML + PNG)
 ├── gitops/
 │   ├── argocd/               # ApplicationSet, namespace app, monitoring
 │   ├── namespaces/           # Namespace dev-eks (Pod Security Admission)
