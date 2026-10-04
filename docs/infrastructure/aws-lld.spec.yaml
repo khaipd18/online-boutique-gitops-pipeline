@@ -1,0 +1,201 @@
+# LLD diagram spec for the Online Boutique platform on AWS.
+# Source of truth for docs/infrastructure/aws-lld.drawio; regenerate with the
+# aws-hld-drawio skill after editing. Every value below is taken from terraform/
+# (and gitops/ for the load balancer). Names are the Terraform Name tags.
+#
+# Subnet plan (terraform/modules/vpc/modules/subnet): cidrsubnet(10.18.0.0/16, 8, n)
+#   public  n = 0,1 -> 10.18.0.0/24 (apse1-az1), 10.18.1.0/24 (apse1-az2)
+#   private n = 2,3 -> 10.18.2.0/24 (apse1-az1), 10.18.3.0/24 (apse1-az2)
+# AZs are given as AZ IDs because Terraform pins them by ID (availability_zone_id);
+# the AZ name each ID maps to differs per account.
+title: "Online Boutique on AWS - LLD"
+pages:
+  # --------------------------------------------------------------- network detail
+  - name: "L1 Network detail"
+    level: lld
+    direction: column
+    items:
+      - group: vpc
+        id: vpc
+        label: "VPC (enable_dns_hostnames)"
+        cidr: "10.18.0.0/16"
+        direction: row
+        items:
+          - group: layout
+            direction: column
+            items:
+              - group: layout
+                items:
+                  - {id: igw, service: internet_gateway, label: "group5_igw"}
+                  - {id: vpce_if, service: vpc_endpoint, label: "Interface endpoints",
+                     details: ["ecr.api · ecr.dkr · sts", "private DNS on", "SG ecr-endpoint-sg"]}
+                  - {id: vpce_s3, service: vpc_endpoint, label: "S3 gateway endpoint",
+                     details: ["private route table"]}
+              - group: layout
+                direction: column
+                items:
+                  - group: az
+                    label: "AZ apse1-az1"
+                    items:
+                      - group: private_subnet
+                        id: sn_priv_1
+                        label: "private_subnet (az1)"
+                        cidr: "10.18.2.0/24"
+                        items:
+                          - {id: nodes_1, service: ec2, label: "EKS managed nodes",
+                             details: ["t3.medium · AL2023", "20 GiB root volume"]}
+                      - group: public_subnet
+                        id: sn_pub_1
+                        label: "public_subnet (az1)"
+                        cidr: "10.18.0.0/24"
+                        items:
+                          - {id: nat, service: nat_gateway, label: "nat_gw", details: ["EIP (domain vpc)"]}
+                  - group: az
+                    label: "AZ apse1-az2"
+                    items:
+                      - group: private_subnet
+                        id: sn_priv_2
+                        label: "private_subnet (az2)"
+                        cidr: "10.18.3.0/24"
+                        items:
+                          - {id: nodes_2, service: ec2, label: "EKS managed nodes",
+                             details: ["t3.medium · AL2023", "20 GiB root volume"]}
+                      # No NAT gateway in AZ 2: a single NAT keeps cost down; the private
+                      # route table is shared, so AZ-2 egress goes through AZ-1.
+                      - group: public_subnet
+                        id: sn_pub_2
+                        label: "public_subnet (az2)"
+                        cidr: "10.18.1.0/24"
+                        items: []
+          - group: layout
+            direction: column
+            items:
+              - id: rtb_pub
+                route_table:
+                  name: "public_route_table"
+                  subnets: [sn_pub_1, sn_pub_2]
+                  routes:
+                    - {dest: "10.18.0.0/16", target: "local"}
+                    - {dest: "0.0.0.0/0", target: igw}
+              - id: rtb_priv
+                route_table:
+                  name: "private_route_table"
+                  subnets: [sn_priv_1, sn_priv_2]
+                  routes:
+                    - {dest: "10.18.0.0/16", target: "local"}
+                    - {dest: "0.0.0.0/0", target: nat}
+                    - {dest: "pl-s3 (prefix list)", target: vpce_s3}
+              - id: nacl
+                table:
+                  title: "Network ACLs"
+                  header: ["NACL", "Subnets", "Inbound / outbound"]
+                  rows:
+                    - ["public_subnet_network_acl", "both public", "allow all"]
+                    - ["private_subnet_network_acl", "both private", "allow all"]
+    # No routing arrows: the route tables on this page are the statement about routing.
+    edges: []
+
+  # ------------------------------------------------------------ security group flow
+  # Traffic order left to right. Rules for the cluster security group come from the
+  # EKS defaults (https://docs.aws.amazon.com/eks/latest/userguide/sec-group-reqs.html);
+  # the managed node group has no launch template, so EKS attaches this SG to the nodes.
+  # The load balancer SG and its NodePort rule are created by the Kubernetes in-tree
+  # cloud provider for Service frontend-external, not by Terraform (assumption: the
+  # rule covers the NodePort range).
+  - name: "L2 Security group flow"
+    level: lld
+    sg_summary: true
+    direction: column
+    items:
+      - group: layout
+        items:
+          - {id: internet, service: users, label: "Internet"}
+          - group: layout
+            items:
+              - group: security_group
+                id: sg_lb
+                label: "k8s-elb-* (Kubernetes)"
+                inbound:
+                  - {port: "tcp/80", from: "0.0.0.0/0", description: "frontend-external listener"}
+                items:
+                  - {id: clb, service: elb, label: "Classic Load Balancer", details: ["Service frontend-external", "80 -> NodePort"]}
+          - group: layout
+            items:
+              - group: security_group
+                id: sg_cluster
+                label: "eks-cluster-sg-* (EKS)"
+                direction: column
+                inbound:
+                  - {port: "all", from: sg_cluster, description: "EKS default: nodes and control plane"}
+                  - {port: "tcp/30000-32767", from: sg_lb, description: "NodePort, added by Kubernetes"}
+                items:
+                  - {id: cp, service: eks, label: "EKS control plane ENIs", details: ["Kubernetes 1.35", "public + private endpoint"]}
+                  - {id: nodes, service: ec2, label: "EKS managed nodes", details: ["t3.medium · AL2023", "min 1 / desired 2 / max 3"]}
+          # Finding: the rule description says HTTPS but it allows every protocol from
+          # the VPC CIDR; tcp/443 would be enough for the endpoints.
+          - group: layout
+            items:
+              - group: security_group
+                id: sg_vpce
+                label: "ecr-endpoint-sg"
+                inbound:
+                  - {port: "all", from: "10.18.0.0/16", description: "whole VPC (only tcp/443 is needed)"}
+                items:
+                  - {id: vpce, service: vpc_endpoint, label: "Interface endpoints", details: ["ecr.api · ecr.dkr · sts"]}
+    edges:
+      - {from: internet, to: clb, port: "tcp/80", label: "HTTP"}
+      - {from: clb, to: nodes, port: "tcp/30000-32767", label: "NodePort"}
+      # Pinned sides: the two flows between nodes and control plane would otherwise share
+      # the left side and their labels overlap.
+      - {from: nodes, to: cp, port: "tcp/443", label: "API server", exit: right, entry: right}
+      - {from: cp, to: nodes, port: "tcp/10250", label: "kubelet", style: dashed, exit: left, entry: left}
+      - {from: nodes, to: vpce, port: "tcp/443", label: "ECR pull, STS (IRSA)"}
+
+  # ------------------------------------------------------------ CI/CD and IAM OIDC
+  # Who may assume which role is decided by the sub claim of the GitHub OIDC token
+  # (terraform/modules/github-oidc-role). Both the classic and the immutable sub
+  # formats are trusted because the repository was renamed (see README).
+  - name: "L3 CI/CD and IAM OIDC"
+    level: lld
+    direction: column
+    items:
+      - group: layout
+        items:
+          - {id: gh, tech: github, label: "GitHub Actions", details: ["khaipd18/online-boutique-gitops-pipeline"]}
+          - group: aws_cloud
+            direction: row
+            items:
+              - group: layout
+                direction: column
+                items:
+                  - {id: oidc, service: iam, label: "GitHub OIDC provider", details: ["token.actions.githubusercontent.com", "aud sts.amazonaws.com"]}
+                  - {id: role_ecr, service: iam, label: "github-actions-ecr-oidc-role", details: ["sub: ref:refs/heads/main"]}
+                  - {id: role_plan, service: iam, label: "github-actions-terraform-plan-oidc-role", details: ["sub: pull_request"]}
+                  - {id: role_apply, service: iam, label: "github-actions-terraform-oidc-role", details: ["sub: ref:refs/heads/main"]}
+              - group: region
+                label: "ap-southeast-1"
+                direction: column
+                items:
+                  - group: layout
+                    items:
+                      - {id: ecr, service: ecr, label: "10 ECR repositories", details: ["tag = git SHA, IMMUTABLE", "scan on push (registry)"]}
+                      - {id: eks, service: eks, label: "khaipd18-eks-cluster", details: ["Argo CD ApplicationSet", "namespace dev-eks"]}
+                  - group: layout
+                    items:
+                      - {id: tfstate, service: s3, label: "khaipd18-devops-project-tf-state", details: ["key dev/terraform.tfstate", "encrypted"]}
+                      - {id: tflock, service: dynamodb, label: "…-terraform-state-lock", details: ["LockID"]}
+      - id: roles
+        table:
+          title: "GitHub Actions roles"
+          header: ["Role", "Trusted sub (repo:<repo>:…)", "Permissions", "Used by"]
+          rows:
+            - ["github-actions-ecr-oidc-role", "ref:refs/heads/main", "ECR push/pull on the 10 repositories", "5 service CI workflows"]
+            - ["github-actions-terraform-plan-oidc-role", "pull_request", "ReadOnlyAccess + state read (plan -lock=false)", "terraform.yaml on pull requests"]
+            - ["github-actions-terraform-oidc-role", "ref:refs/heads/main", "AdministratorAccess + state read/write/lock", "terraform.yaml on push to main"]
+    edges:
+      - {from: gh, to: oidc, label: "OIDC token"}
+      - {from: role_ecr, to: ecr, label: "push image"}
+      - {from: role_plan, to: tfstate, label: "read state", style: dashed}
+      - {from: role_apply, to: tfstate, label: "read/write state"}
+      - {from: role_apply, to: tflock, label: "lock"}
+      - {from: eks, to: gh, label: "GitOps pull", style: dashed}
