@@ -35,34 +35,37 @@ pages:
                   - group: layout
                     direction: column
                     items:
-                      # Private subnet first: the load balancer wires arrive from the
-                      # left, so the nodes sit on the left edge of each AZ band.
+                      # Conventional reading order: internet on the left, public subnet
+                      # (edge: load balancer, NAT) next, private subnet (workloads) right.
                       - group: az
                         label: "AZ apse1-az1"
                         items:
+                          - group: public_subnet
+                            items:
+                              - {id: nat, service: nat_gateway, note: "egress for both AZs"}
                           - group: private_subnet
                             items:
                               - {id: nodes_a, service: ec2, label: "EKS worker nodes"}
-                          - group: public_subnet
-                            items:
-                              - {id: nat, service: nat_gateway, note: "shared by both AZs"}
-                      # Cross-AZ resources sit between the AZ bands
+                      # Cross-AZ resources sit between the AZ bands. The internet gateway
+                      # is first so inbound traffic reads Shoppers -> IGW -> load balancer.
+                      # The load balancer (created by Kubernetes for Service
+                      # frontend-external) lives in the public subnets of both AZs.
                       - group: layout
                         items:
-                          - {id: lb, service: elb, label: "Load Balancer", note: "frontend-external"}
-                          - {id: eks, service: eks, label: "Amazon EKS 1.35", note: "Argo CD + 10 services"}
                           - {id: igw, service: internet_gateway}
+                          - {id: lb, service: elb, label: "Load Balancer", note: "public subnets"}
+                          - {id: eks, service: eks, label: "Amazon EKS 1.35", note: "Argo CD + 10 services"}
                           - {id: vpce, service: vpc_endpoint, label: "VPC endpoints", note: "ECR, STS, S3"}
                       # AZ-b has no NAT gateway: one NAT keeps cost down; egress from
                       # AZ-b depends on AZ-a (accepted trade-off for a dev environment).
                       - group: az
                         label: "AZ apse1-az2"
                         items:
+                          - group: public_subnet
+                            items: []
                           - group: private_subnet
                             items:
                               - {id: nodes_b, service: ec2, label: "EKS worker nodes"}
-                          - group: public_subnet
-                            items: []
               # Regional services in one column; ECR in the middle so its two wires
               # (VPC endpoints on the left, GitHub Actions on the right) stay short.
               - group: layout
@@ -77,11 +80,14 @@ pages:
       - {id: github, tech: github, label: "GitHub Actions"}
 
     edges:
-      - {from: users, to: lb, label: "HTTP"}
-      - {from: lb, to: nodes_a, label: "NodePort"}
-      - {from: lb, to: nodes_b, label: "NodePort"}
+      - {from: users, to: igw, label: "HTTP"}
+      - {from: igw, to: lb}
+      # HLD: the load balancer forwards to the cluster (NodePort on the worker nodes);
+      # where the nodes run is shown by the two private subnets. One straight wire on
+      # the middle row instead of two wires dropping through the AZ bands.
+      - {from: lb, to: eks, label: "NodePort"}
+      - {from: nat, to: igw, label: "egress", style: dashed}
       - {from: vpce, to: ecr, label: "image pull (PrivateLink)"}
-      - {from: nat, to: igw, label: "egress"}
       - {from: github, to: iam, label: "OIDC"}
       - {from: github, to: ecr, label: "push image"}
       - {from: eks, to: github, label: "GitOps pull", style: dashed}
