@@ -51,7 +51,7 @@ spec:
             - name: GOMAXPROCS
               value: "1"
             - name: GOMEMLIMIT
-              value: "230Mi"
+              value: "230MiB"
           resources:
             requests:
               cpu: "100m"
