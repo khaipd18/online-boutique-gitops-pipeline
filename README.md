@@ -68,34 +68,13 @@ File gốc chỉnh sửa được bằng draw.io: [`aws-hld.drawio`](docs/infras
 
 ### Từ commit tới cluster
 
-```mermaid
-flowchart LR
-    dev["Developer"] -->|"push src/**"| gh["GitHub"]
-    gh --> ci["GitHub Actions<br/>lint · test · scan"]
-    ci -->|"OIDC, chỉ từ main"| role["IAM role"]
-    ci -->|"build + Trivy"| img["Container image"]
-    img -->|"push, tag = git SHA"| ecr[("Amazon ECR")]
-    ci -->|"bot commit image.tag"| values["gitops/dev-eks/values-*.yaml"]
-    values -->|"watch"| argo["Argo CD<br/>ApplicationSet"]
-    argo -->|"helm template + sync"| eks["EKS · namespace dev-eks"]
-    ecr -->|"pull"| eks
-
-    pr["Pull request<br/>terraform/**"] --> checkov["Checkov gate"] --> plan["terraform plan<br/>read-only role"]
-    plan -->|"merge vào main"| apply["terraform apply<br/>admin role, chỉ từ main"]
-```
+![Delivery pipeline](docs/infrastructure/images/aws-delivery-pipeline.png)
 
 ### Ai được gọi ai (NetworkPolicy)
 
 Mỗi service chỉ nhận traffic từ đúng những service cần gọi nó, theo các mũi tên dưới đây. Mọi kết nối khác đều bị chặn.
 
-```mermaid
-flowchart LR
-    lb["frontend-external<br/>LoadBalancer"] --> frontend
-    frontend --> adservice & productcatalogservice & currencyservice & cartservice & recommendationservice & checkoutservice & shippingservice
-    checkoutservice --> productcatalogservice & currencyservice & cartservice & shippingservice & emailservice & paymentservice
-    recommendationservice --> productcatalogservice
-    cartservice --> redis[("redis-cart")]
-```
+![In-cluster traffic and NetworkPolicy](docs/infrastructure/images/aws-in-cluster-traffic.png)
 
 ---
 
