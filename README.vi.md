@@ -1,5 +1,7 @@
 # Online Boutique on EKS: một DevSecOps pipeline chạy thật, từ commit tới production
 
+[English](README.md) | **Tiếng Việt**
+
 > Push một dòng code, và mọi thứ còn lại tự chạy: lint, test, scan, build image, đẩy lên ECR, cập nhật Git, Argo CD sync lên EKS. Không một access key nào nằm trong repo.
 
 ![Terraform](https://img.shields.io/badge/IaC-Terraform_1.14-7B42BC?logo=terraform&logoColor=white)
@@ -374,7 +376,7 @@ online-boutique-gitops-pipeline/
 ├── .github/
 │   ├── actions/trivy-scan/   # Composite action: image scan, SARIF, SBOM
 │   └── workflows/            # CI theo ngôn ngữ, Terraform, Security Scan
-├── docs/infrastructure/       # Sơ đồ HLD/LLD (draw.io + spec YAML + PNG)
+├── docs/infrastructure/      # Sơ đồ HLD/LLD (draw.io + spec YAML + PNG)
 ├── gitops/
 │   ├── argocd/               # ApplicationSet, namespace app, monitoring
 │   ├── namespaces/           # Namespace dev-eks (Pod Security Admission)
