@@ -1,8 +1,8 @@
-# Online Boutique on EKS: a real DevSecOps pipeline, from commit to production
+# Online Boutique on EKS: DevSecOps pipeline with Terraform, GitHub Actions and Argo CD
 
 **English** | [Tiếng Việt](README.vi.md)
 
-> Push one line of code and everything else runs on its own: lint, test, scan, build the image, push it to ECR, update Git, and let Argo CD sync it to EKS. Not a single access key lives in this repo.
+> A code push runs lint, tests and scans, then builds the image and pushes it to ECR. CI writes the new tag to Git and Argo CD syncs it to EKS. The repo stores no AWS access keys.
 
 ![Terraform](https://img.shields.io/badge/IaC-Terraform_1.14-7B42BC?logo=terraform&logoColor=white)
 ![Amazon EKS](https://img.shields.io/badge/Amazon_EKS-1.35-FF9900?logo=amazoneks&logoColor=white)
@@ -16,9 +16,9 @@
 
 ## About
 
-This is a personal DevOps/DevSecOps project. It takes Google's [Online Boutique](https://github.com/GoogleCloudPlatform/microservices-demo), an e-commerce system of 10 microservices written in 5 languages (Go, C#, Java, Node.js, Python) that communicate over gRPC, and builds everything around it to run it on AWS properly: infrastructure, CI/CD, GitOps and the security layers.
+This is a personal DevOps/DevSecOps project. It takes Google's [Online Boutique](https://github.com/GoogleCloudPlatform/microservices-demo), an e-commerce system of 10 microservices written in 5 languages (Go, C#, Java, Node.js, Python) that communicate over gRPC, and adds the infrastructure, CI/CD, GitOps setup and security controls needed to run it on AWS.
 
-One question drove the whole project: *"If this were a real production system, how should it be built and protected?"* So the repo does not stop at "it deploys". It goes on to the things an operations team cares about: least privilege for the pipeline, no long-lived credentials, misconfigurations blocked before `apply`, images scanned before they are pushed, and network isolation between services.
+The design follows what a production setup would need: least privilege for the pipeline, no long-lived credentials, misconfigurations blocked before `apply`, images scanned before they are pushed, and network isolation between services.
 
 | | |
 |---|---|
@@ -31,13 +31,13 @@ One question drove the whole project: *"If this were a real production system, h
 
 ## Highlights
 
-- 🏗️ **72 AWS resources** built entirely with Terraform modules: a 2-AZ VPC, EKS, ECR, VPC endpoints, IAM OIDC.
-- 🔑 **Zero long-lived credentials.** GitHub Actions reaches AWS through OIDC and pods use IRSA. Trust policies are pinned down to the `sub` claim: only `main` may `apply` or push images, while pull requests may only `plan` with a read-only role.
-- 🧪 **5 CI pipelines for 5 languages**, building only the services that changed thanks to path filters and a dynamic matrix.
-- 🛡️ **Security gates before anything reaches AWS:** Checkov blocks misconfigured Terraform before `plan`/`apply`, and Trivy scans every image before it is pushed, publishing results to GitHub's *Security* tab along with a CycloneDX SBOM.
-- 🔁 **A closed GitOps loop:** CI writes the image's git SHA into `gitops/`, and an Argo CD ApplicationSet syncs it to the cluster and reverts any manual change (self-heal).
-- 🔒 **Pod hardening and network segmentation:** non-root, read-only root filesystem, all capabilities dropped, Pod Security Admission `restricted`, and NetworkPolicies that open only the gRPC paths that are actually needed.
-- ✅ **Evidence, not just code:** end-to-end checkout works, NetworkPolicy blocks 3/3 unauthorized connections, and Checkov findings on the Kubernetes manifests dropped from **128 to 12** ([details](#verification-results)).
+- **72 AWS resources** built entirely with Terraform modules: a 2-AZ VPC, EKS, ECR, VPC endpoints, IAM OIDC.
+- **No long-lived credentials.** GitHub Actions reaches AWS through OIDC and pods use IRSA. Trust policies are pinned down to the `sub` claim: only `main` may `apply` or push images, while pull requests may only `plan` with a read-only role.
+- **5 CI pipelines for 5 languages**, building only the services that changed thanks to path filters and a dynamic matrix.
+- **Security gates:** Checkov blocks misconfigured Terraform before `plan`/`apply`, and Trivy scans every image before it is pushed, publishing results to GitHub's *Security* tab along with a CycloneDX SBOM.
+- **GitOps:** CI writes the image's git SHA into `gitops/`, and an Argo CD ApplicationSet syncs it to the cluster and reverts any manual change (self-heal).
+- **Pod hardening and network segmentation:** non-root, read-only root filesystem, all capabilities dropped, Pod Security Admission `restricted`, and NetworkPolicies that open only the gRPC paths that are actually needed.
+- **Verified:** end-to-end checkout works, NetworkPolicy blocks 3/3 unauthorized connections, and Checkov findings on the Kubernetes manifests dropped from **128 to 12** ([details](#verification-results)).
 
 ---
 
@@ -121,7 +121,7 @@ The infrastructure is split into small modules that each do one job. The account
 
 ### Continuous Integration
 
-Each language has its own pipeline. On every push, `dorny/paths-filter` works out which services changed, builds a dynamic matrix, and only those services are built. Images are scanned **before** they are pushed, so a problematic image never reaches the registry unnoticed.
+Each language has its own pipeline. On every push, `dorny/paths-filter` works out which services changed, builds a dynamic matrix, and only those services are built. Images are scanned before they are pushed, and the results go to GitHub code scanning.
 
 <details>
 <summary><b>Quality gates per stack</b></summary>
@@ -150,7 +150,7 @@ One **ApplicationSet** generates an Application per service. They all share **on
 <summary><b>GitOps configuration in detail</b></summary>
 <br>
 
-- `automated`, `prune` and `selfHeal` are on: anyone who edits the cluster by hand gets reverted by Argo CD to what Git says.
+- `automated`, `prune` and `selfHeal` are on, so Argo CD reverts manual changes on the cluster to the state in Git.
 - The chart is secure by default (see Security); each service only declares what is different, such as ports, env, resources and probes.
 - `frontend-external` is a release containing only a LoadBalancer Service (`deployment.enabled: false`) that targets the `frontend-dev` pods, keeping internet exposure separate from the workload.
 - The `dev-eks` namespace is managed by its own Application, labelled for Pod Security Admission and annotated so a sync can never delete it.
@@ -159,7 +159,7 @@ One **ApplicationSet** generates an Application per service. They all share **on
 
 ### Security
 
-Security is layered, each layer addressing a specific risk:
+Each risk below maps to a control in the repo:
 
 | Risk | Mitigation | Where in the repo |
 |---|---|---|
@@ -189,7 +189,7 @@ The AWS environment was torn down afterwards to avoid cost. The security layers 
 
 ### End-to-end test on Kubernetes
 
-A kind v0.33.0 cluster (Kubernetes 1.37), 10 images built from `src/`, the namespace created from the very same `gitops/namespaces/dev-eks.yaml`, 12 releases installed with `helm-charts/`, then both the shopping flow and attack scenarios tested. Anyone can reproduce it by following [this guide](#run-locally-with-kind).
+A kind v0.33.0 cluster (Kubernetes 1.37), 10 images built from `src/`, the namespace created from the very same `gitops/namespaces/dev-eks.yaml`, 12 releases installed with `helm-charts/`, then both the shopping flow and attack scenarios tested. The steps are in [Run locally with kind](#run-locally-with-kind).
 
 | Scenario | Expected | Result |
 |---|---|---|
@@ -205,7 +205,7 @@ A kind v0.33.0 cluster (Kubernetes 1.37), 10 images built from `src/`, the names
 | Unrelated pod → `redis-cart:6379` | Blocked | ✅ |
 | Unrelated pod → `productcatalogservice:3550` | Blocked | ✅ |
 
-A complete checkout also proves that every legitimate path in the NetworkPolicy diagram is open.
+A complete checkout also confirms that every legitimate path in the NetworkPolicy diagram is open.
 
 ### Security scans
 
@@ -343,7 +343,7 @@ Clean up with `kind delete cluster --name boutique`.
 
 ## Day-to-day operations
 
-- **Ship a new version of a service:** push to `src/<service>` on `main`. CI tests, builds, scans and pushes the image, the bot updates the tag, and Argo CD syncs. Nobody touches the cluster by hand.
+- **Ship a new version of a service:** push to `src/<service>` on `main`. CI tests, builds, scans and pushes the image, the bot updates the tag, and Argo CD syncs.
 - **Change infrastructure through a pull request:** open a PR that changes `terraform/` → Checkov runs, then `terraform plan` with the read-only role (`-lock=false`) → review the plan in the log → merge into `main` → `terraform apply` with the admin role. PRs from forks get no OIDC token from GitHub, so only Checkov runs for them.
 - **Branch protection:** enable a ruleset on `main` (pull request required, *Checkov Scan* must pass). Note that the CI bot pushes image tags straight to `gitops/`, so either let GitHub Actions bypass the rule or switch the bot to opening PRs.
 - **Accept a new Checkov finding:** fix the configuration first. If the finding is judged acceptable, regenerate the baseline in a PR so it gets reviewed:

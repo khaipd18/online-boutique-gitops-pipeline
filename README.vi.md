@@ -1,8 +1,8 @@
-# Online Boutique on EKS: một DevSecOps pipeline chạy thật, từ commit tới production
+# Online Boutique on EKS: DevSecOps pipeline với Terraform, GitHub Actions và Argo CD
 
 [English](README.md) | **Tiếng Việt**
 
-> Push một dòng code, và mọi thứ còn lại tự chạy: lint, test, scan, build image, đẩy lên ECR, cập nhật Git, Argo CD sync lên EKS. Không một access key nào nằm trong repo.
+> Mỗi lần push code, pipeline chạy lint, test, scan, rồi build image và đẩy lên ECR. CI ghi tag mới vào Git, Argo CD sync lên EKS. Repo không chứa access key AWS nào.
 
 ![Terraform](https://img.shields.io/badge/IaC-Terraform_1.14-7B42BC?logo=terraform&logoColor=white)
 ![Amazon EKS](https://img.shields.io/badge/Amazon_EKS-1.35-FF9900?logo=amazoneks&logoColor=white)
@@ -16,9 +16,9 @@
 
 ## About
 
-Đây là dự án DevOps/DevSecOps cá nhân. Dự án lấy [Online Boutique](https://github.com/GoogleCloudPlatform/microservices-demo) của Google (một hệ thống e-commerce gồm 10 microservice viết bằng 5 ngôn ngữ Go, C#, Java, Node.js, Python, giao tiếp qua gRPC) làm nền, rồi xây toàn bộ phần còn lại để đưa hệ thống lên AWS đúng cách: hạ tầng, CI/CD, GitOps và các lớp bảo mật.
+Đây là dự án DevOps/DevSecOps cá nhân. Dự án lấy [Online Boutique](https://github.com/GoogleCloudPlatform/microservices-demo) của Google (một hệ thống e-commerce gồm 10 microservice viết bằng 5 ngôn ngữ Go, C#, Java, Node.js, Python, giao tiếp qua gRPC) làm nền và bổ sung hạ tầng, CI/CD, GitOps cùng các lớp bảo mật để chạy hệ thống trên AWS.
 
-Câu hỏi dẫn dắt cả dự án là: *"Nếu đây là hệ thống production thật, cần dựng và bảo vệ nó thế nào?"* Vì vậy repo không dừng ở mức "deploy được", mà đi tiếp tới những thứ một team vận hành quan tâm: quyền tối thiểu cho pipeline, không còn long-lived credentials, chặn cấu hình sai trước khi `apply`, quét lỗ hổng image trước khi push, và cô lập mạng giữa các service.
+Thiết kế bám theo yêu cầu của một môi trường production: quyền tối thiểu cho pipeline, không dùng long-lived credentials, chặn cấu hình sai trước khi `apply`, quét lỗ hổng image trước khi push, và cô lập mạng giữa các service.
 
 | | |
 |---|---|
@@ -31,13 +31,13 @@ Câu hỏi dẫn dắt cả dự án là: *"Nếu đây là hệ thống product
 
 ## Highlights
 
-- 🏗️ **72 tài nguyên AWS** dựng hoàn toàn bằng Terraform module: VPC 2 AZ, EKS, ECR, VPC endpoints, IAM OIDC.
-- 🔑 **Zero long-lived credentials.** GitHub Actions vào AWS bằng OIDC, pod dùng IRSA. Trust policy khóa đến từng claim `sub`: chỉ `main` mới được `apply` hay push image, còn pull request chỉ được `plan` với role read-only.
-- 🧪 **5 CI pipeline cho 5 ngôn ngữ**, chỉ build đúng service có thay đổi nhờ path filter và dynamic matrix.
-- 🛡️ **Security gates trước khi có gì đến được AWS:** Checkov chặn Terraform cấu hình sai trước `plan`/`apply`, Trivy quét mọi image trước khi push và đẩy kết quả lên tab *Security* của GitHub kèm SBOM CycloneDX.
-- 🔁 **GitOps khép kín:** CI ghi git SHA của image vào `gitops/`, Argo CD ApplicationSet tự sync lên cluster và tự sửa lại mọi thay đổi tay (self-heal).
-- 🔒 **Pod hardening và network segmentation:** non-root, read-only root filesystem, drop mọi capability, Pod Security Admission `restricted`, NetworkPolicy chỉ mở đúng những đường gọi gRPC cần thiết.
-- ✅ **Có bằng chứng, không chỉ có code:** checkout end-to-end chạy trọn, NetworkPolicy chặn 3/3 kết nối trái phép, lỗi Checkov trên Kubernetes manifests giảm từ **128 xuống 12** ([chi tiết](#kết-quả-kiểm-chứng)).
+- **72 tài nguyên AWS** dựng hoàn toàn bằng Terraform module: VPC 2 AZ, EKS, ECR, VPC endpoints, IAM OIDC.
+- **Không dùng long-lived credentials.** GitHub Actions vào AWS bằng OIDC, pod dùng IRSA. Trust policy khóa đến từng claim `sub`: chỉ `main` mới được `apply` hay push image, còn pull request chỉ được `plan` với role read-only.
+- **5 CI pipeline cho 5 ngôn ngữ**, chỉ build đúng service có thay đổi nhờ path filter và dynamic matrix.
+- **Security gates:** Checkov chặn Terraform cấu hình sai trước `plan`/`apply`, Trivy quét mọi image trước khi push và đẩy kết quả lên tab *Security* của GitHub kèm SBOM CycloneDX.
+- **GitOps:** CI ghi git SHA của image vào `gitops/`, Argo CD ApplicationSet tự sync lên cluster và tự sửa lại mọi thay đổi tay (self-heal).
+- **Pod hardening và network segmentation:** non-root, read-only root filesystem, drop mọi capability, Pod Security Admission `restricted`, NetworkPolicy chỉ mở đúng những đường gọi gRPC cần thiết.
+- **Đã kiểm chứng:** checkout end-to-end chạy trọn, NetworkPolicy chặn 3/3 kết nối trái phép, lỗi Checkov trên Kubernetes manifests giảm từ **128 xuống 12** ([chi tiết](#kết-quả-kiểm-chứng)).
 
 ---
 
@@ -121,7 +121,7 @@ Hạ tầng chia thành các module nhỏ, mỗi module làm đúng một việc
 
 ### Continuous Integration
 
-Mỗi ngôn ngữ có pipeline riêng. Khi bạn push, `dorny/paths-filter` xác định service nào vừa đổi, sinh dynamic matrix, và chỉ những service đó được build. Image được scan **trước** khi push, nên image có vấn đề không bao giờ lên tới registry mà không ai biết.
+Mỗi ngôn ngữ có pipeline riêng. Mỗi lần push, `dorny/paths-filter` xác định service nào vừa đổi, sinh dynamic matrix, và chỉ những service đó được build. Image được scan trước khi push, kết quả đẩy lên GitHub code scanning.
 
 <details>
 <summary><b>Quality gates theo từng stack</b></summary>
@@ -150,7 +150,7 @@ Một **ApplicationSet** sinh ra một Application cho mỗi service, tất cả
 <summary><b>Chi tiết cấu hình GitOps</b></summary>
 <br>
 
-- Bật `automated`, `prune` và `selfHeal`: ai sửa tay trên cluster sẽ bị Argo CD đưa về đúng trạng thái trong Git.
+- Bật `automated`, `prune` và `selfHeal`, nên Argo CD đưa mọi thay đổi tay trên cluster về đúng trạng thái trong Git.
 - Chart mặc định đã an toàn (xem phần Security); mỗi service chỉ khai báo phần khác biệt như port, env, resources, probe.
 - `frontend-external` là release chỉ chứa Service kiểu LoadBalancer (`deployment.enabled: false`) trỏ vào pod `frontend-dev`, tách hẳn việc expose ra internet khỏi workload.
 - Namespace `dev-eks` do một Application riêng quản lý, gắn nhãn Pod Security Admission và annotation chống xóa nhầm khi sync.
@@ -159,7 +159,7 @@ Một **ApplicationSet** sinh ra một Application cho mỗi service, tất cả
 
 ### Security
 
-Bảo mật được đặt ở nhiều lớp, mỗi lớp xử lý một rủi ro cụ thể:
+Mỗi rủi ro dưới đây tương ứng với một biện pháp trong repo:
 
 | Rủi ro | Cách xử lý | Ở đâu trong repo |
 |---|---|---|
@@ -189,7 +189,7 @@ Môi trường AWS đã được gỡ sau đó để không tốn chi phí. Các
 
 ### Test end-to-end trên Kubernetes
 
-Dựng một cluster kind v0.33.0 (Kubernetes 1.37), build 10 image từ `src/`, tạo namespace bằng chính file `gitops/namespaces/dev-eks.yaml`, cài 12 release bằng `helm-charts/`, rồi test cả luồng mua hàng lẫn các kịch bản tấn công. Ai cũng có thể chạy lại theo [hướng dẫn này](#chạy-thử-local-với-kind).
+Dựng một cluster kind v0.33.0 (Kubernetes 1.37), build 10 image từ `src/`, tạo namespace bằng chính file `gitops/namespaces/dev-eks.yaml`, cài 12 release bằng `helm-charts/`, rồi test cả luồng mua hàng lẫn các kịch bản tấn công. Các bước chạy lại nằm ở [phần chạy thử local với kind](#chạy-thử-local-với-kind).
 
 | Kịch bản | Kỳ vọng | Kết quả |
 |---|---|---|
@@ -205,7 +205,7 @@ Dựng một cluster kind v0.33.0 (Kubernetes 1.37), build 10 image từ `src/`,
 | Pod không liên quan → `redis-cart:6379` | Chặn | ✅ |
 | Pod không liên quan → `productcatalogservice:3550` | Chặn | ✅ |
 
-Checkout chạy trọn cũng chứng minh mọi đường gọi hợp lệ trong sơ đồ NetworkPolicy đều thông.
+Checkout chạy trọn cũng xác nhận mọi đường gọi hợp lệ trong sơ đồ NetworkPolicy đều thông.
 
 ### Security scan
 
@@ -343,7 +343,7 @@ Xong thì dọn bằng `kind delete cluster --name boutique`.
 
 ## Vận hành hằng ngày
 
-- **Ra bản mới cho một service:** push vào `src/<service>` trên `main`. CI test, build, scan, đẩy image, bot cập nhật tag, Argo CD sync. Không cần đụng tay vào cluster.
+- **Ra bản mới cho một service:** push vào `src/<service>` trên `main`. CI test, build, scan, đẩy image, bot cập nhật tag, Argo CD sync.
 - **Thay đổi hạ tầng qua pull request:** mở PR sửa `terraform/` → Checkov chạy, rồi `terraform plan` bằng role read-only (`-lock=false`) → review plan trong log → merge vào `main` → `terraform apply` bằng role admin. PR từ fork không được GitHub cấp OIDC token nên chỉ chạy Checkov.
 - **Branch protection:** nên bật ruleset cho `main` (bắt buộc qua PR, yêu cầu check *Checkov Scan* pass). Lưu ý bot CI đang push thẳng tag vào `gitops/`, nên hoặc cho GitHub Actions bypass, hoặc đổi bot sang mở PR.
 - **Chấp nhận một phát hiện Checkov mới:** ưu tiên sửa cấu hình. Nếu đã đánh giá là chấp nhận được, tạo lại baseline trong một PR để có người review:
