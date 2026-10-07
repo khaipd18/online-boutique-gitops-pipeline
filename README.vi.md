@@ -16,9 +16,9 @@
 
 ## About
 
-Đây là dự án DevOps/DevSecOps cá nhân. Mình lấy [Online Boutique](https://github.com/GoogleCloudPlatform/microservices-demo) của Google, một hệ thống e-commerce gồm 10 microservice viết bằng 5 ngôn ngữ (Go, C#, Java, Node.js, Python) nói chuyện với nhau qua gRPC, rồi tự xây toàn bộ phần còn lại để đưa nó lên AWS đúng cách: hạ tầng, CI/CD, GitOps và các lớp bảo mật.
+Đây là dự án DevOps/DevSecOps cá nhân. Dự án lấy [Online Boutique](https://github.com/GoogleCloudPlatform/microservices-demo) của Google (một hệ thống e-commerce gồm 10 microservice viết bằng 5 ngôn ngữ Go, C#, Java, Node.js, Python, nói chuyện với nhau qua gRPC) làm nền, rồi xây toàn bộ phần còn lại để đưa hệ thống lên AWS đúng cách: hạ tầng, CI/CD, GitOps và các lớp bảo mật.
 
-Câu hỏi dẫn dắt cả dự án là: *"Nếu đây là hệ thống production thật, mình sẽ dựng và bảo vệ nó thế nào?"* Vì vậy repo không dừng ở mức "deploy được", mà đi tiếp tới những thứ một team vận hành thật sự quan tâm: quyền tối thiểu cho pipeline, không còn long-lived credentials, chặn cấu hình sai trước khi `apply`, quét lỗ hổng image trước khi push, và cô lập mạng giữa các service.
+Câu hỏi dẫn dắt cả dự án là: *"Nếu đây là hệ thống production thật, cần dựng và bảo vệ nó thế nào?"* Vì vậy repo không dừng ở mức "deploy được", mà đi tiếp tới những thứ một team vận hành thật sự quan tâm: quyền tối thiểu cho pipeline, không còn long-lived credentials, chặn cấu hình sai trước khi `apply`, quét lỗ hổng image trước khi push, và cô lập mạng giữa các service.
 
 | | |
 |---|---|
@@ -354,7 +354,7 @@ Xong thì dọn bằng `kind delete cluster --name boutique`.
 
 ## Roadmap
 
-Những gì mình sẽ làm tiếp, xếp theo mức ưu tiên:
+Các việc tiếp theo, xếp theo mức ưu tiên:
 
 - [ ] Nâng dependency của các service (có thể tự động bằng Dependabot) rồi bật `blocking: 'true'` cho Trivy, `govulncheck`, `npm audit`.
 - [ ] Giới hạn EKS public endpoint (hiện mở `0.0.0.0/0`) hoặc chuyển hẳn sang private endpoint.
