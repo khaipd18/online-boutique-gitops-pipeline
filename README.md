@@ -16,9 +16,9 @@
 
 ## About
 
-This is a personal DevOps/DevSecOps project. It takes Google's [Online Boutique](https://github.com/GoogleCloudPlatform/microservices-demo), an e-commerce system of 10 microservices written in 5 languages (Go, C#, Java, Node.js, Python) that talk to each other over gRPC, and builds everything around it to run it on AWS properly: infrastructure, CI/CD, GitOps and the security layers.
+This is a personal DevOps/DevSecOps project. It takes Google's [Online Boutique](https://github.com/GoogleCloudPlatform/microservices-demo), an e-commerce system of 10 microservices written in 5 languages (Go, C#, Java, Node.js, Python) that communicate over gRPC, and builds everything around it to run it on AWS properly: infrastructure, CI/CD, GitOps and the security layers.
 
-One question drove the whole project: *"If this were a real production system, how should it be built and protected?"* So the repo does not stop at "it deploys". It goes on to the things an operations team actually cares about: least privilege for the pipeline, no long-lived credentials, misconfigurations blocked before `apply`, images scanned before they are pushed, and network isolation between services.
+One question drove the whole project: *"If this were a real production system, how should it be built and protected?"* So the repo does not stop at "it deploys". It goes on to the things an operations team cares about: least privilege for the pipeline, no long-lived credentials, misconfigurations blocked before `apply`, images scanned before they are pushed, and network isolation between services.
 
 | | |
 |---|---|
