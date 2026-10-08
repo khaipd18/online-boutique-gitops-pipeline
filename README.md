@@ -31,8 +31,8 @@ The design follows what a production setup would need: least privilege for the p
 
 ## Highlights
 
-- **72 AWS resources** built entirely with Terraform modules: a 2-AZ VPC, EKS, ECR, VPC endpoints, IAM OIDC.
-- **No long-lived credentials.** GitHub Actions reaches AWS through OIDC and pods use IRSA. Trust policies are pinned down to the `sub` claim: only `main` may `apply` or push images, while pull requests may only `plan` with a read-only role.
+- **73 AWS resources** built entirely with Terraform modules: a 2-AZ VPC, EKS, ECR, VPC endpoints, IAM OIDC.
+- **No long-lived credentials.** GitHub Actions reaches AWS through OIDC and pods use IRSA. Trust policies are pinned down to the `sub` claim: only `main` may push images, `apply` runs only after a reviewer approves the `production` environment, and pull requests may only `plan` with a read-only role.
 - **5 CI pipelines for 5 languages**, building only the services that changed thanks to path filters and a dynamic matrix.
 - **Security gates:** Checkov blocks misconfigured Terraform before `plan`/`apply`, and Trivy scans every image before it is pushed, publishing results to GitHub's *Security* tab along with a CycloneDX SBOM.
 - **GitOps:** CI writes the image's git SHA into `gitops/`, and an Argo CD ApplicationSet syncs it to the cluster and reverts any manual change (self-heal).
@@ -165,7 +165,7 @@ Each risk below maps to a control in the repo:
 | Risk | Mitigation | Where in the repo |
 |---|---|---|
 | Leaked access keys | GitHub Actions uses OIDC, pods use IRSA | `terraform/main.tf`, `modules/eks/iam.tf` |
-| Any branch or PR gaining AWS admin | The `apply` role and the ECR push role can only be assumed from `ref:refs/heads/main`; PRs only get the read-only `plan` role. Both GitHub's classic `sub` format and its newer immutable format (with owner/repo IDs) are trusted | `modules/github-oidc-role` |
+| Any branch or PR gaining AWS admin | The `apply` role can only be assumed from the `production` GitHub environment, which accepts `main` only and waits for a reviewer. The ECR push role can only be assumed from `ref:refs/heads/main`, and PRs only get the read-only `plan` role. Both GitHub's classic `sub` format and its newer immutable format (with owner/repo IDs) are trusted | `modules/github-oidc-role` |
 | Misconfigured Terraform | Checkov blocks before `plan`/`apply`. Reviewed findings live in a baseline, and every skipped check carries a written reason | `.checkov.yaml`, `terraform/.checkov.baseline` |
 | Images with known vulnerabilities | Trivy scans before push, results go to code scanning, plus an SBOM | `.github/actions/trivy-scan` |
 | Overwritten images | Immutable ECR tags, tagged by git SHA | `modules/ecr` |
@@ -235,13 +235,16 @@ These vulnerabilities sit in the base images and dependencies of the original so
 ### Terraform
 
 - `terraform fmt -check -recursive` and `terraform validate` both pass.
-- A read-only `terraform plan` against a real AWS account with empty state: **72 resources to add, no errors, no warnings**.
+- A read-only `terraform plan` against a real AWS account with empty state: **73 resources to add, no errors, no warnings**.
 - The trust policies accept exactly these `sub` claims (computed with `terraform console`):
 
   ```text
-  github-actions-terraform-oidc-role, github-actions-ecr-oidc-role:
+  github-actions-ecr-oidc-role:
     repo:khaipd18/online-boutique-gitops-pipeline:ref:refs/heads/main
     repo:khaipd18@174919444/online-boutique-gitops-pipeline@1204916149:ref:refs/heads/main
+  github-actions-terraform-oidc-role:
+    repo:khaipd18/online-boutique-gitops-pipeline:environment:production
+    repo:khaipd18@174919444/online-boutique-gitops-pipeline@1204916149:environment:production
   github-actions-terraform-plan-oidc-role:
     repo:khaipd18/online-boutique-gitops-pipeline:pull_request
     repo:khaipd18@174919444/online-boutique-gitops-pipeline@1204916149:pull_request
@@ -347,8 +350,8 @@ Clean up with `kind delete cluster --name boutique`.
 ## Day-to-day operations
 
 - **Ship a new version of a service:** push to `src/<service>` on `main`. CI tests, builds, scans and pushes the image, the bot updates the tag, and Argo CD syncs.
-- **Change infrastructure through a pull request:** open a PR that changes `terraform/` → Checkov runs, then `terraform plan` with the read-only role (`-lock=false`) → review the plan in the log → merge into `main` → `terraform apply` with the admin role. PRs from forks get no OIDC token from GitHub, so only Checkov runs for them.
-- **Branch protection:** enable a ruleset on `main` (pull request required, *Checkov Scan* must pass). Note that the CI bot pushes image tags straight to `gitops/`, so either let GitHub Actions bypass the rule or switch the bot to opening PRs.
+- **Change infrastructure through a pull request:** open a PR that changes `terraform/` → Checkov runs, then `terraform plan` with the read-only role (`-lock=false`) → review the plan in the log → merge into `main` → approve the `production` deployment → `terraform apply` with the admin role. PRs from forks get no OIDC token from GitHub, so only Checkov runs for them.
+- **Branch protection:** the `protect-main` ruleset blocks force pushes and deletion of `main` and requires a pull request; repository admins can bypass it. No status check is required, because every workflow runs only for matching paths and a required check that never starts would block the PR.
 - **Accept a new Checkov finding:** fix the configuration first. If the finding is judged acceptable, regenerate the baseline in a PR so it gets reviewed:
   `checkov --config-file .checkov.yaml -d terraform --framework terraform --create-baseline`
 - **Switch AWS accounts:** repeat steps 1–3 of the deployment and change `AWS_ACCOUNT_ID`. If the account is shared with another project, check for name clashes first: an account can only have one OIDC provider for `token.actions.githubusercontent.com`, and IAM role and policy names are unique within an account.
@@ -360,6 +363,7 @@ Clean up with `kind delete cluster --name boutique`.
 What comes next, in order of priority:
 
 - [ ] Upgrade the services' dependencies (possibly automated with Dependabot), then set `blocking: 'true'` for Trivy, `govulncheck` and `npm audit`.
+- [ ] Let the CI bot update `gitops/` again: the `main` ruleset now blocks its direct push, and a personal repository cannot add GitHub Actions to the bypass list. Use a deploy key on the bypass list, or have the bot open pull requests.
 - [ ] Restrict the EKS public endpoint (currently open to `0.0.0.0/0`) or move to a private endpoint only.
 - [ ] Narrow `ecr-endpoint-sg` from all protocols down to `tcp/443` from the VPC (found while drawing the LLD security group page).
 - [ ] Replace the single zonal NAT Gateway (shared by both AZs today to save cost) with a [regional NAT gateway](https://docs.aws.amazon.com/vpc/latest/userguide/nat-gateways-regional.html), which spans the AZs on its own and needs no public subnet.

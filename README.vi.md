@@ -31,8 +31,8 @@ Thiết kế bám theo yêu cầu của một môi trường production: quyền
 
 ## Highlights
 
-- **72 tài nguyên AWS** dựng hoàn toàn bằng Terraform module: VPC 2 AZ, EKS, ECR, VPC endpoints, IAM OIDC.
-- **Không dùng long-lived credentials.** GitHub Actions vào AWS bằng OIDC, pod dùng IRSA. Trust policy khóa đến từng claim `sub`: chỉ `main` mới được `apply` hay push image, còn pull request chỉ được `plan` với role read-only.
+- **73 tài nguyên AWS** dựng hoàn toàn bằng Terraform module: VPC 2 AZ, EKS, ECR, VPC endpoints, IAM OIDC.
+- **Không dùng long-lived credentials.** GitHub Actions vào AWS bằng OIDC, pod dùng IRSA. Trust policy khóa đến từng claim `sub`: chỉ `main` mới được push image, `apply` chỉ chạy sau khi có người duyệt environment `production`, còn pull request chỉ được `plan` với role read-only.
 - **5 CI pipeline cho 5 ngôn ngữ**, chỉ build đúng service có thay đổi nhờ path filter và dynamic matrix.
 - **Security gates:** Checkov chặn Terraform cấu hình sai trước `plan`/`apply`, Trivy quét mọi image trước khi push và đẩy kết quả lên tab *Security* của GitHub kèm SBOM CycloneDX.
 - **GitOps:** CI ghi git SHA của image vào `gitops/`, Argo CD ApplicationSet tự sync lên cluster và tự sửa lại mọi thay đổi tay (self-heal).
@@ -165,7 +165,7 @@ Mỗi rủi ro dưới đây tương ứng với một biện pháp trong repo:
 | Rủi ro | Cách xử lý | Ở đâu trong repo |
 |---|---|---|
 | Lộ access key | GitHub Actions dùng OIDC, pod dùng IRSA | `terraform/main.tf`, `modules/eks/iam.tf` |
-| Một branch hay PR bất kỳ chiếm quyền admin AWS | Role `apply` và role push ECR chỉ assume được từ `ref:refs/heads/main`; PR chỉ có role `plan` read-only. Chấp nhận cả định dạng `sub` cũ lẫn định dạng immutable (kèm owner/repo ID) mới của GitHub | `modules/github-oidc-role` |
+| Một branch hay PR bất kỳ chiếm quyền admin AWS | Role `apply` chỉ assume được từ GitHub environment `production`, environment này chỉ nhận `main` và chờ người duyệt. Role push ECR chỉ assume được từ `ref:refs/heads/main`, còn PR chỉ có role `plan` read-only. Chấp nhận cả định dạng `sub` cũ lẫn định dạng immutable (kèm owner/repo ID) mới của GitHub | `modules/github-oidc-role` |
 | Terraform cấu hình sai | Checkov chặn trước `plan`/`apply`. Các phát hiện đã đánh giá nằm trong baseline, check nào bị bỏ qua đều có ghi lý do | `.checkov.yaml`, `terraform/.checkov.baseline` |
 | Image có lỗ hổng đã biết | Trivy quét trước khi push, kết quả lên code scanning, kèm SBOM | `.github/actions/trivy-scan` |
 | Image bị ghi đè | Tag ECR immutable, tag theo git SHA | `modules/ecr` |
@@ -235,13 +235,16 @@ Các lỗ hổng này nằm trong base image và dependency của mã nguồn g�
 ### Terraform
 
 - `terraform fmt -check -recursive` và `terraform validate` đều pass.
-- `terraform plan` chạy read-only trên một tài khoản AWS thật với state rỗng: **72 resource sẽ được tạo, không lỗi, không warning**.
+- `terraform plan` chạy read-only trên một tài khoản AWS thật với state rỗng: **73 resource sẽ được tạo, không lỗi, không warning**.
 - Trust policy chỉ chấp nhận đúng các claim `sub` sau (tính bằng `terraform console`):
 
   ```text
-  github-actions-terraform-oidc-role, github-actions-ecr-oidc-role:
+  github-actions-ecr-oidc-role:
     repo:khaipd18/online-boutique-gitops-pipeline:ref:refs/heads/main
     repo:khaipd18@174919444/online-boutique-gitops-pipeline@1204916149:ref:refs/heads/main
+  github-actions-terraform-oidc-role:
+    repo:khaipd18/online-boutique-gitops-pipeline:environment:production
+    repo:khaipd18@174919444/online-boutique-gitops-pipeline@1204916149:environment:production
   github-actions-terraform-plan-oidc-role:
     repo:khaipd18/online-boutique-gitops-pipeline:pull_request
     repo:khaipd18@174919444/online-boutique-gitops-pipeline@1204916149:pull_request
@@ -347,8 +350,8 @@ Xong thì dọn bằng `kind delete cluster --name boutique`.
 ## Vận hành hằng ngày
 
 - **Ra bản mới cho một service:** push vào `src/<service>` trên `main`. CI test, build, scan, đẩy image, bot cập nhật tag, Argo CD sync.
-- **Thay đổi hạ tầng qua pull request:** mở PR sửa `terraform/` → Checkov chạy, rồi `terraform plan` bằng role read-only (`-lock=false`) → review plan trong log → merge vào `main` → `terraform apply` bằng role admin. PR từ fork không được GitHub cấp OIDC token nên chỉ chạy Checkov.
-- **Branch protection:** nên bật ruleset cho `main` (bắt buộc qua PR, yêu cầu check *Checkov Scan* pass). Lưu ý bot CI đang push thẳng tag vào `gitops/`, nên hoặc cho GitHub Actions bypass, hoặc đổi bot sang mở PR.
+- **Thay đổi hạ tầng qua pull request:** mở PR sửa `terraform/` → Checkov chạy, rồi `terraform plan` bằng role read-only (`-lock=false`) → review plan trong log → merge vào `main` → duyệt deployment `production` → `terraform apply` bằng role admin. PR từ fork không được GitHub cấp OIDC token nên chỉ chạy Checkov.
+- **Branch protection:** ruleset `protect-main` chặn force push và xóa nhánh `main`, đồng thời bắt buộc qua pull request; admin của repo được bypass. Không đặt status check bắt buộc, vì workflow nào cũng chỉ chạy khi đúng path, và một check bắt buộc không bao giờ chạy sẽ chặn PR mãi.
 - **Chấp nhận một phát hiện Checkov mới:** ưu tiên sửa cấu hình. Nếu đã đánh giá là chấp nhận được, tạo lại baseline trong một PR để có người review:
   `checkov --config-file .checkov.yaml -d terraform --framework terraform --create-baseline`
 - **Đổi tài khoản AWS:** làm lại bước 1–3 ở phần triển khai và đổi `AWS_ACCOUNT_ID`. Nếu tài khoản dùng chung với dự án khác, kiểm tra trùng tên trước: mỗi tài khoản chỉ có một OIDC provider cho `token.actions.githubusercontent.com`, và tên IAM role/policy là duy nhất trong tài khoản.
@@ -360,6 +363,7 @@ Xong thì dọn bằng `kind delete cluster --name boutique`.
 Các việc tiếp theo, xếp theo mức ưu tiên:
 
 - [ ] Nâng dependency của các service (có thể tự động bằng Dependabot) rồi bật `blocking: 'true'` cho Trivy, `govulncheck`, `npm audit`.
+- [ ] Cho bot CI cập nhật `gitops/` trở lại: ruleset của `main` giờ chặn bot push thẳng, và repo cá nhân không thêm được GitHub Actions vào danh sách bypass. Dùng deploy key nằm trong danh sách bypass, hoặc cho bot mở pull request.
 - [ ] Giới hạn EKS public endpoint (hiện mở `0.0.0.0/0`) hoặc chuyển hẳn sang private endpoint.
 - [ ] Thu hẹp `ecr-endpoint-sg` từ mọi giao thức về `tcp/443` từ VPC (phát hiện khi vẽ LLD security group).
 - [ ] Thay NAT Gateway zonal duy nhất (hiện dùng chung cho cả hai AZ để tiết kiệm chi phí) bằng [regional NAT gateway](https://docs.aws.amazon.com/vpc/latest/userguide/nat-gateways-regional.html), tự trải qua các AZ và không cần public subnet.
