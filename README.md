@@ -100,7 +100,7 @@ Each service only accepts traffic from the services that need to call it, follow
 
 ### Infrastructure as Code
 
-The infrastructure is split into small modules that each do one job. The account ID is not hardcoded anywhere: Terraform reads it from the active credentials and the workflows read it from the `AWS_ACCOUNT_ID` repository variable. Moving to another account needs no code change.
+The infrastructure is split into small modules that each do one job. Terraform and the workflows do not hardcode the account ID: Terraform reads it from the active credentials and the workflows read it from the `AWS_ACCOUNT_ID` repository variable, so moving to another account needs no code change. The ECR image references in `gitops/dev-eks/` are written by CI and still point to the account of the earlier EKS run; CI overwrites them on its first run in the new account.
 
 <details>
 <summary><b>Terraform modules in detail</b></summary>
@@ -121,7 +121,7 @@ The infrastructure is split into small modules that each do one job. The account
 
 ### Continuous Integration
 
-Each language has its own pipeline. On every push, `dorny/paths-filter` works out which services changed, builds a dynamic matrix, and only those services are built. Images are scanned before they are pushed, and the results go to GitHub code scanning.
+Each language has its own pipeline. On every push, `dorny/paths-filter` works out which services changed, builds a dynamic matrix, and only those services are built. Images are scanned before they are pushed, and the results go to GitHub code scanning. Without the `AWS_ACCOUNT_ID` variable, CI still lints, tests, builds and scans every image, and skips the ECR push and the GitOps update.
 
 <details>
 <summary><b>Quality gates per stack</b></summary>

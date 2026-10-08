@@ -100,7 +100,7 @@ Mỗi service chỉ nhận traffic từ đúng những service cần gọi nó, 
 
 ### Infrastructure as Code
 
-Hạ tầng chia thành các module nhỏ, mỗi module làm đúng một việc. Account ID không hardcode ở đâu cả: Terraform tự lấy từ credentials đang dùng, còn workflow đọc từ repository variable `AWS_ACCOUNT_ID`. Muốn đổi sang tài khoản khác thì không phải sửa code.
+Hạ tầng chia thành các module nhỏ, mỗi module làm đúng một việc. Terraform và các workflow không hardcode account ID: Terraform tự lấy từ credentials đang dùng, còn workflow đọc từ repository variable `AWS_ACCOUNT_ID`, nên đổi sang tài khoản khác không phải sửa code. Địa chỉ image ECR trong `gitops/dev-eks/` do CI ghi vào và vẫn trỏ tới tài khoản của lần chạy EKS trước; lần đầu CI chạy ở tài khoản mới sẽ ghi đè lại.
 
 <details>
 <summary><b>Chi tiết các module Terraform</b></summary>
@@ -121,7 +121,7 @@ Hạ tầng chia thành các module nhỏ, mỗi module làm đúng một việc
 
 ### Continuous Integration
 
-Mỗi ngôn ngữ có pipeline riêng. Mỗi lần push, `dorny/paths-filter` xác định service nào vừa đổi, sinh dynamic matrix, và chỉ những service đó được build. Image được scan trước khi push, kết quả đẩy lên GitHub code scanning.
+Mỗi ngôn ngữ có pipeline riêng. Mỗi lần push, `dorny/paths-filter` xác định service nào vừa đổi, sinh dynamic matrix, và chỉ những service đó được build. Image được scan trước khi push, kết quả đẩy lên GitHub code scanning. Khi chưa đặt biến `AWS_ACCOUNT_ID`, CI vẫn lint, test, build và scan mọi image, chỉ bỏ qua bước push lên ECR và cập nhật GitOps.
 
 <details>
 <summary><b>Quality gates theo từng stack</b></summary>
