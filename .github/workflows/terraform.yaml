@@ -14,9 +14,9 @@ permissions:
   contents: read
 
 env:
-  # Target AWS account: set the repository variable AWS_ACCOUNT_ID (Settings > Secrets and variables > Actions > Variables)
-  # to deploy to another account. Falls back to the original project account.
-  AWS_ACCOUNT_ID: ${{ vars.AWS_ACCOUNT_ID || '797226340543' }}
+  # Target AWS account: set the repository variable AWS_ACCOUNT_ID (Settings > Secrets and variables > Actions > Variables).
+  # Without it, only the Checkov scan runs.
+  AWS_ACCOUNT_ID: ${{ vars.AWS_ACCOUNT_ID }}
 
 jobs:
   checkov:
@@ -45,8 +45,8 @@ jobs:
   terraform:
     name: 'Terraform Core Workflow'
     needs: checkov
-    # GitHub does not issue OIDC tokens to pull requests from forks, so only plan PRs from this repository
-    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
+    # Needs a target AWS account. GitHub does not issue OIDC tokens to pull requests from forks, so only plan PRs from this repository
+    if: vars.AWS_ACCOUNT_ID != '' && (github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository)
     runs-on: ubuntu-latest
     permissions:
       id-token: write

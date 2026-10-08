@@ -16,9 +16,9 @@ permissions:
   contents: read
 
 env:
-  # Target AWS account: set the repository variable AWS_ACCOUNT_ID (Settings > Secrets and variables > Actions > Variables)
-  # to deploy to another account. Falls back to the original project account.
-  AWS_ACCOUNT_ID: ${{ vars.AWS_ACCOUNT_ID || '797226340543' }}
+  # Target AWS account: set the repository variable AWS_ACCOUNT_ID (Settings > Secrets and variables > Actions > Variables).
+  # Without it, CI still lints, tests, builds and scans the images, and skips the ECR push and GitOps update.
+  AWS_ACCOUNT_ID: ${{ vars.AWS_ACCOUNT_ID }}
 
 jobs:
   detect-changes:
@@ -92,19 +92,22 @@ jobs:
         run: dotnet test --no-build --configuration Release
 
       - name: Configure AWS credentials via OIDC
+        if: env.AWS_ACCOUNT_ID != ''
         uses: aws-actions/configure-aws-credentials@v6
         with:
           role-to-assume: arn:aws:iam::${{ env.AWS_ACCOUNT_ID }}:role/github-actions-ecr-oidc-role
           aws-region: ap-southeast-1
 
       - name: Login to Amazon ECR
+        if: env.AWS_ACCOUNT_ID != ''
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
       - name: Build Image
         id: build
         env:
-          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          # Without an AWS account the image is only built and scanned, under a local name
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry || 'local' }}
           ECR_REPOSITORY: ${{ matrix.service }}
           IMAGE_TAG: ${{ github.event.inputs.custom_tag || github.sha }}
         run: |
@@ -120,7 +123,7 @@ jobs:
           } >> "$GITHUB_ENV"
 
           # ECR tags are immutable: re-running CI for the same commit must not build and push the same tag again
-          if docker manifest inspect "$IMAGE" > /dev/null 2>&1; then
+          if [ -n "$AWS_ACCOUNT_ID" ] && docker manifest inspect "$IMAGE" > /dev/null 2>&1; then
             echo "::notice::$ECR_REPOSITORY:$IMAGE_TAG already exists in ECR, skipping build, scan and push"
             echo "exists=true" >> "$GITHUB_OUTPUT"
           else
@@ -138,10 +141,11 @@ jobs:
           blocking: 'false'
 
       - name: Push Image
-        if: steps.build.outputs.exists == 'false'
+        if: steps.build.outputs.exists == 'false' && env.AWS_ACCOUNT_ID != ''
         run: docker push "$IMAGE"
 
       - name: Update GitOps and Push Back
+        if: env.AWS_ACCOUNT_ID != ''
         working-directory: . 
         run: |
           # Update image configs
