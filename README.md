@@ -362,7 +362,7 @@ What comes next, in order of priority:
 - [ ] Upgrade the services' dependencies (possibly automated with Dependabot), then set `blocking: 'true'` for Trivy, `govulncheck` and `npm audit`.
 - [ ] Restrict the EKS public endpoint (currently open to `0.0.0.0/0`) or move to a private endpoint only.
 - [ ] Narrow `ecr-endpoint-sg` from all protocols down to `tcp/443` from the VPC (found while drawing the LLD security group page).
-- [ ] One NAT Gateway per AZ for production (one shared NAT today to save cost).
+- [ ] Replace the single zonal NAT Gateway (shared by both AZs today to save cost) with a [regional NAT gateway](https://docs.aws.amazon.com/vpc/latest/userguide/nat-gateways-regional.html), which spans the AZs on its own and needs no public subnet.
 - [ ] Centralised secret management with External Secrets Operator + AWS Secrets Manager.
 - [ ] Pin images by digest, sign them with cosign and verify at admission.
 - [ ] Replace the default Classic Load Balancer with the AWS Load Balancer Controller (NLB/ALB).

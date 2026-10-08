@@ -362,7 +362,7 @@ Các việc tiếp theo, xếp theo mức ưu tiên:
 - [ ] Nâng dependency của các service (có thể tự động bằng Dependabot) rồi bật `blocking: 'true'` cho Trivy, `govulncheck`, `npm audit`.
 - [ ] Giới hạn EKS public endpoint (hiện mở `0.0.0.0/0`) hoặc chuyển hẳn sang private endpoint.
 - [ ] Thu hẹp `ecr-endpoint-sg` từ mọi giao thức về `tcp/443` từ VPC (phát hiện khi vẽ LLD security group).
-- [ ] Một NAT Gateway cho mỗi AZ khi lên production (hiện dùng chung một NAT để tiết kiệm chi phí).
+- [ ] Thay NAT Gateway zonal duy nhất (hiện dùng chung cho cả hai AZ để tiết kiệm chi phí) bằng [regional NAT gateway](https://docs.aws.amazon.com/vpc/latest/userguide/nat-gateways-regional.html), tự trải qua các AZ và không cần public subnet.
 - [ ] Quản lý secret tập trung bằng External Secrets Operator + AWS Secrets Manager.
 - [ ] Pin image theo digest, ký image bằng cosign và verify ở admission.
 - [ ] Thay Classic Load Balancer mặc định bằng AWS Load Balancer Controller (NLB/ALB).
