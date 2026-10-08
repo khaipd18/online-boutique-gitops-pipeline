@@ -155,6 +155,8 @@ pages:
   # Who may assume which role is decided by the sub claim of the GitHub OIDC token
   # (terraform/modules/github-oidc-role). Both the classic and the immutable sub
   # formats are trusted because the repository was renamed (see README).
+  # The apply role trusts the "production" GitHub environment instead of a branch: that
+  # environment accepts main only and waits for a reviewer before the job gets a token.
   - name: "L3 CI/CD and IAM OIDC"
     level: lld
     direction: column
@@ -171,7 +173,7 @@ pages:
                   - {id: oidc, service: iam, label: "GitHub OIDC provider", details: ["token.actions.githubusercontent.com", "aud sts.amazonaws.com"]}
                   - {id: role_ecr, service: iam, label: "github-actions-ecr-oidc-role", details: ["sub: ref:refs/heads/main"]}
                   - {id: role_plan, service: iam, label: "github-actions-terraform-plan-oidc-role", details: ["sub: pull_request"]}
-                  - {id: role_apply, service: iam, label: "github-actions-terraform-oidc-role", details: ["sub: ref:refs/heads/main"]}
+                  - {id: role_apply, service: iam, label: "github-actions-terraform-oidc-role", details: ["sub: environment:production", "main only, reviewer approval"]}
               - group: region
                 label: "ap-southeast-1"
                 direction: column
@@ -191,7 +193,7 @@ pages:
           rows:
             - ["github-actions-ecr-oidc-role", "ref:refs/heads/main", "ECR push/pull on the 10 repositories", "5 service CI workflows"]
             - ["github-actions-terraform-plan-oidc-role", "pull_request", "ReadOnlyAccess + state read (plan -lock=false)", "terraform.yaml on pull requests"]
-            - ["github-actions-terraform-oidc-role", "ref:refs/heads/main", "AdministratorAccess + state read/write/lock", "terraform.yaml on push to main"]
+            - ["github-actions-terraform-oidc-role", "environment:production", "AdministratorAccess + state read/write/lock", "terraform.yaml apply job, push to main + approval"]
     edges:
       - {from: gh, to: oidc, label: "OIDC token"}
       - {from: role_ecr, to: ecr, label: "push image"}

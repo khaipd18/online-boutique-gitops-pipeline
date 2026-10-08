@@ -63,7 +63,7 @@ Traffic từ internet đi vào qua Internet Gateway tới load balancer nằm tr
 
 **CI/CD và IAM OIDC**: role nào được assume từ đâu, quyền gì, tác động lên tài nguyên nào.
 
-![AWS LLD CI/CD and IAM](docs/infrastructure/images/aws-lld-cicd-iam.png)
+![AWS LLD CI/CD and IAM](docs/infrastructure/images/aws-lld-cicd-oidc-roles.png)
 
 File gốc chỉnh sửa được bằng draw.io: [`aws-hld.drawio`](docs/infrastructure/aws-hld.drawio), [`aws-lld.drawio`](docs/infrastructure/aws-lld.drawio). Sơ đồ được sinh từ spec YAML ([`aws-hld.spec.yaml`](docs/infrastructure/aws-hld.spec.yaml), [`aws-lld.spec.yaml`](docs/infrastructure/aws-lld.spec.yaml)) với giá trị lấy trực tiếp từ `terraform/`.
 </details>
