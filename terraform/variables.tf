@@ -167,3 +167,9 @@ variable "eks_kube_proxy_version" {
   default     = "v1.35.3-eksbuild.2"
 }
 
+variable "eks_metrics_server_version" {
+  description = "The version of the Metrics Server community addon to use for the EKS cluster."
+  type        = string
+  default     = "v0.9.0-eksbuild.11"
+}
+

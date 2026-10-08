@@ -69,3 +69,8 @@ variable "kube_proxy_version" {
   type        = string
 }
 
+variable "metrics_server_version" {
+  description = "The version of the Metrics Server community addon to use for the EKS cluster."
+  type        = string
+}
+

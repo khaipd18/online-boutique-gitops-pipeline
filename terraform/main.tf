@@ -176,6 +176,8 @@ module "eks" {
 
   kube_proxy_version = var.eks_kube_proxy_version
 
+  metrics_server_version = var.eks_metrics_server_version
+
   depends_on = [module.vpc]
 }
 

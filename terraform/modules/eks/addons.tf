@@ -25,3 +25,11 @@ resource "aws_eks_addon" "kube_proxy" {
   addon_version               = var.kube_proxy_version
   resolve_conflicts_on_update = "OVERWRITE"
 }
+
+# Metrics API for the Horizontal Pod Autoscaler (community add-on, not installed on EKS by default)
+resource "aws_eks_addon" "metrics_server" {
+  cluster_name                = aws_eks_cluster.eks_cluster.name
+  addon_name                  = "metrics-server"
+  addon_version               = var.metrics_server_version
+  resolve_conflicts_on_update = "OVERWRITE"
+}
