@@ -120,12 +120,13 @@ resource "aws_iam_policy" "terraform_state_policy" {
   policy      = data.aws_iam_policy_document.terraform_state_permissions.json
 }
 
-# terraform apply: admin, only from main (after review and merge)
+# terraform apply: admin, only from jobs that use the "production" GitHub environment. That environment accepts
+# deployments from main only and waits for a reviewer, so a merge alone cannot apply
 module "github_oidc_role_terraform" {
   source              = "./modules/github-oidc-role"
   role_name           = "github-actions-terraform-oidc-role"
   github_repos        = local.github_oidc_repos
-  allowed_subjects    = ["ref:refs/heads/main"]
+  allowed_subjects    = ["environment:production"]
   oidc_provider_arn   = aws_iam_openid_connect_provider.github_core.arn
   ecr_repository_arns = []
   custom_policy_arns = [
