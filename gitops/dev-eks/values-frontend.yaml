@@ -3,6 +3,13 @@ deployment:
 
 replicaCount: 1
 
+# Entry point for all user traffic: keep 2+ replicas spread across AZs, scale out on CPU
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 4
+  targetCPUUtilizationPercentage: 70
+
 serviceAccount:
   create: true
   name: "frontend"

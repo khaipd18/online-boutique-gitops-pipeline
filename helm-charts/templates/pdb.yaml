@@ -1,0 +1,15 @@
+{{- $replicas := ternary .Values.autoscaling.minReplicas (.Values.replicaCount | default 1) .Values.autoscaling.enabled }}
+{{- if and .Values.deployment.enabled .Values.podDisruptionBudget.enabled (ge (int $replicas) 2) }}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ .Release.Name }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: {{ .Release.Name }}
+spec:
+  minAvailable: {{ .Values.podDisruptionBudget.minAvailable }}
+  selector:
+    matchLabels:
+      app: {{ .Release.Name }}
+{{- end }}

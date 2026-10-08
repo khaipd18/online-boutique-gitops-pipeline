@@ -7,7 +7,9 @@ metadata:
   labels:
     app: {{ .Release.Name }}
 spec:
+  {{- if not .Values.autoscaling.enabled }}
   replicas: {{ .Values.replicaCount | default 1 }}
+  {{- end }}
   selector:
     matchLabels:
       app: {{ .Release.Name }}
@@ -20,6 +22,18 @@ spec:
       serviceAccountName: {{ .Values.serviceAccount.name | default .Release.Name }}
       {{- end }}
       automountServiceAccountToken: {{ .Values.automountServiceAccountToken }}
+
+      {{- if .Values.topologySpread.enabled }}
+      topologySpreadConstraints:
+        {{- range list "topology.kubernetes.io/zone" "kubernetes.io/hostname" }}
+        - maxSkew: 1
+          topologyKey: {{ . }}
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app: {{ $.Release.Name }}
+        {{- end }}
+      {{- end }}
 
       {{- if .Values.podSecurityContext }}
       securityContext:

@@ -3,6 +3,23 @@ deployment:
 
 replicaCount: 1
 
+# CPU-based Horizontal Pod Autoscaler. Needs metrics-server and resources.requests.cpu; replicaCount is ignored while it is on
+autoscaling:
+  enabled: false
+  minReplicas: 2
+  maxReplicas: 4
+  targetCPUUtilizationPercentage: 70
+
+# Keeps minAvailable pods running during voluntary disruptions such as node drains.
+# Only rendered when the service runs 2+ replicas: a budget of 1 on a single replica would block every drain
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+
+# Spread replicas across zones, then nodes, when possible (soft constraint, never blocks scheduling)
+topologySpread:
+  enabled: true
+
 serviceAccount:
   create: false
   name: ""
