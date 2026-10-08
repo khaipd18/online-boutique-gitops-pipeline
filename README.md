@@ -86,7 +86,7 @@ Each service only accepts traffic from the services that need to call it, follow
 |---|---|---|
 | Infrastructure as Code | Terraform, AWS provider | 1.14.8, 6.39.0 |
 | Kubernetes | Amazon EKS, managed node group AL2023 | 1.35 |
-| EKS add-ons | VPC CNI (network policy enabled), CoreDNS, kube-proxy | v1.21.1, v1.13.2, v1.35.3 |
+| EKS add-ons | VPC CNI (network policy enabled), CoreDNS, kube-proxy, Metrics Server | v1.21.1, v1.13.2, v1.35.3, v0.9.0 |
 | Container registry | Amazon ECR, immutable tags, registry-level scan on push | – |
 | CI | GitHub Actions, `dorny/paths-filter`, composite action | – |
 | Security scanning | Checkov (IaC), Trivy (image, SARIF, CycloneDX SBOM) | 3.3.22, 0.75.0 |
@@ -109,7 +109,7 @@ The infrastructure is split into small modules that each do one job. Terraform a
 | Module | What it creates |
 |---|---|
 | `vpc` | VPC, 2 public + 2 private subnets across 2 AZs, Internet Gateway, NAT Gateway, route tables, NACLs |
-| `eks` | EKS cluster (all 5 control plane log types enabled), managed node group, VPC CNI/CoreDNS/kube-proxy add-ons, OIDC provider for IRSA |
+| `eks` | EKS cluster (all 5 control plane log types enabled), managed node group, VPC CNI/CoreDNS/kube-proxy/Metrics Server add-ons, OIDC provider for IRSA |
 | `ecr` | 10 repositories with `IMMUTABLE` tags; a lifecycle policy that expires untagged images after 14 days and archives images nobody pulled for 90 days; scan on push configured at registry level, as AWS recommends |
 | `vpc-endpoints` | Interface endpoints `ecr.api`, `ecr.dkr`, `sts` and a gateway endpoint for S3 |
 | `github-oidc-role` | IAM roles for GitHub Actions, with trust policies pinned to the `sub` claim |
@@ -155,6 +155,7 @@ One **ApplicationSet** generates an Application per service. They all share **on
 - `frontend-external` is a release containing only a LoadBalancer Service (`deployment.enabled: false`) that targets the `frontend-dev` pods, keeping internet exposure separate from the workload.
 - The `dev-eks` namespace is managed by its own Application, labelled for Pod Security Admission and annotated so a sync can never delete it.
 - kube-prometheus-stack is deployed by Argo CD with `ServerSideApply=true`, because its CRDs exceed the annotation size limit of client-side apply.
+- Replicas of a service are spread across AZs and then nodes when possible. A service can turn on a CPU-based HPA (`autoscaling.enabled`), and a PodDisruptionBudget (`minAvailable: 1`) is added once it runs 2 or more replicas. On `dev-eks`, `frontend` runs 2 to 4 replicas; Metrics Server comes from the EKS community add-on ([Metrics Server on EKS](https://docs.aws.amazon.com/eks/latest/userguide/metrics-server.html)).
 </details>
 
 ### Security
@@ -204,8 +205,10 @@ A kind v0.33.0 cluster (Kubernetes 1.37), 10 images built from `src/`, the names
 | Unrelated pod → `paymentservice:50051` | Blocked | ✅ |
 | Unrelated pod → `redis-cart:6379` | Blocked | ✅ |
 | Unrelated pod → `productcatalogservice:3550` | Blocked | ✅ |
+| `frontend` under load (8 parallel request loops), HPA target 70% CPU | Scales out | ✅ 2 → 3 replicas at 82% CPU |
+| Drain the last node that still runs `frontend` | Eviction blocked by the PDB | ✅ Last pod kept running |
 
-A complete checkout also confirms that every legitimate path in the NetworkPolicy diagram is open.
+A complete checkout also confirms that every legitimate path in the NetworkPolicy diagram is open. The last two rows ran on a 3-node kind cluster (1 control plane, 2 workers) with metrics-server and the HPA turned on for `frontend`, whose two replicas started on different nodes.
 
 ### Security scans
 

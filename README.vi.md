@@ -86,7 +86,7 @@ Mỗi service chỉ nhận traffic từ đúng những service cần gọi nó, 
 |---|---|---|
 | Infrastructure as Code | Terraform, AWS provider | 1.14.8, 6.39.0 |
 | Kubernetes | Amazon EKS, managed node group AL2023 | 1.35 |
-| EKS add-ons | VPC CNI (bật network policy), CoreDNS, kube-proxy | v1.21.1, v1.13.2, v1.35.3 |
+| EKS add-ons | VPC CNI (bật network policy), CoreDNS, kube-proxy, Metrics Server | v1.21.1, v1.13.2, v1.35.3, v0.9.0 |
 | Container registry | Amazon ECR, tag immutable, scan on push ở cấp registry | – |
 | CI | GitHub Actions, `dorny/paths-filter`, composite action | – |
 | Security scanning | Checkov (IaC), Trivy (image, SARIF, SBOM CycloneDX) | 3.3.22, 0.75.0 |
@@ -109,7 +109,7 @@ Hạ tầng chia thành các module nhỏ, mỗi module làm đúng một việc
 | Module | Tạo ra những gì |
 |---|---|
 | `vpc` | VPC, 2 public + 2 private subnet trên 2 AZ, Internet Gateway, NAT Gateway, route table, NACL |
-| `eks` | EKS cluster (bật đủ 5 loại control plane log), managed node group, add-on VPC CNI/CoreDNS/kube-proxy, OIDC provider cho IRSA |
+| `eks` | EKS cluster (bật đủ 5 loại control plane log), managed node group, add-on VPC CNI/CoreDNS/kube-proxy/Metrics Server, OIDC provider cho IRSA |
 | `ecr` | 10 repository với tag `IMMUTABLE`; lifecycle policy xóa image untagged sau 14 ngày và archive image không ai pull sau 90 ngày; scan on push cấu hình ở cấp registry theo khuyến nghị của AWS |
 | `vpc-endpoints` | Interface endpoint `ecr.api`, `ecr.dkr`, `sts` và gateway endpoint cho S3 |
 | `github-oidc-role` | IAM role cho GitHub Actions, trust policy khóa theo claim `sub` |
@@ -155,6 +155,7 @@ Một **ApplicationSet** sinh ra một Application cho mỗi service, tất cả
 - `frontend-external` là release chỉ chứa Service kiểu LoadBalancer (`deployment.enabled: false`) trỏ vào pod `frontend-dev`, tách hẳn việc expose ra internet khỏi workload.
 - Namespace `dev-eks` do một Application riêng quản lý, gắn nhãn Pod Security Admission và annotation chống xóa nhầm khi sync.
 - kube-prometheus-stack được deploy bằng Argo CD với `ServerSideApply=true`, vì CRD của nó vượt giới hạn kích thước annotation của client-side apply.
+- Các replica của một service được rải đều qua các AZ rồi tới các node khi có thể. Service có thể bật HPA theo CPU (`autoscaling.enabled`), và PodDisruptionBudget (`minAvailable: 1`) tự được thêm khi service chạy từ 2 replica trở lên. Trên `dev-eks`, `frontend` chạy 2 đến 4 replica; Metrics Server cài bằng EKS community add-on ([Metrics Server on EKS](https://docs.aws.amazon.com/eks/latest/userguide/metrics-server.html)).
 </details>
 
 ### Security
@@ -204,8 +205,10 @@ Dựng một cluster kind v0.33.0 (Kubernetes 1.37), build 10 image từ `src/`,
 | Pod không liên quan → `paymentservice:50051` | Chặn | ✅ |
 | Pod không liên quan → `redis-cart:6379` | Chặn | ✅ |
 | Pod không liên quan → `productcatalogservice:3550` | Chặn | ✅ |
+| `frontend` chịu tải (8 vòng request song song), HPA đặt mục tiêu 70% CPU | Tự scale out | ✅ 2 → 3 replica ở 82% CPU |
+| Drain node cuối cùng còn chạy `frontend` | PDB chặn eviction | ✅ Pod cuối vẫn chạy |
 
-Checkout chạy trọn cũng xác nhận mọi đường gọi hợp lệ trong sơ đồ NetworkPolicy đều thông.
+Checkout chạy trọn cũng xác nhận mọi đường gọi hợp lệ trong sơ đồ NetworkPolicy đều thông. Hai dòng cuối chạy trên cluster kind 3 node (1 control plane, 2 worker) có metrics-server và bật HPA cho `frontend`; hai replica của nó khởi động trên hai node khác nhau.
 
 ### Security scan
 
