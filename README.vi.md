@@ -41,6 +41,17 @@ Thiết kế bám theo yêu cầu của một môi trường production: quyền
 
 ---
 
+## Tài liệu
+
+| Tài liệu | Nội dung | PDF |
+|---|---|---|
+| Tài liệu thiết kế kỹ thuật (OBE-TDD-001) | Thiết kế hạ tầng, nền tảng Kubernetes, CI/CD và bảo mật, các quyết định thiết kế, rủi ro | [Tiếng Việt](docs/manuals/technical-design.vi.pdf) · [English](docs/manuals/technical-design.en.pdf) |
+| Sổ tay vận hành (OBE-RUN-001) | Truy cập, dựng và gỡ môi trường, quy trình thường ngày, monitoring, 14 kịch bản xử lý sự cố, khôi phục sau thảm họa | [Tiếng Việt](docs/manuals/operations-runbook.vi.pdf) · [English](docs/manuals/operations-runbook.en.pdf) |
+
+Các file PDF được build từ mã nguồn Typst trong [`docs/manuals/`](docs/manuals) bằng `docs/manuals/build.sh` (Typst 0.15 trở lên; font đã kèm sẵn).
+
+---
+
 ## Kiến trúc
 
 ### Hạ tầng trên AWS
@@ -349,6 +360,8 @@ Xong thì dọn bằng `kind delete cluster --name boutique`.
 
 ## Vận hành hằng ngày
 
+Quy trình đầy đủ và các kịch bản xử lý sự cố nằm trong [Sổ tay vận hành](docs/manuals/operations-runbook.vi.pdf).
+
 - **Ra bản mới cho một service:** push vào `src/<service>` trên `main`. CI test, build, scan, đẩy image, bot cập nhật tag, Argo CD sync.
 - **Thay đổi hạ tầng qua pull request:** mở PR sửa `terraform/` → Checkov chạy, rồi `terraform plan` bằng role read-only (`-lock=false`) → review plan trong log → merge vào `main` → duyệt deployment `production` → `terraform apply` bằng role admin. PR từ fork không được GitHub cấp OIDC token nên chỉ chạy Checkov.
 - **Branch protection:** ruleset `protect-main` chặn force push và xóa nhánh `main`, đồng thời bắt buộc qua pull request; admin của repo được bypass. Không đặt status check bắt buộc, vì workflow nào cũng chỉ chạy khi đúng path, và một check bắt buộc không bao giờ chạy sẽ chặn PR mãi.
@@ -384,6 +397,7 @@ online-boutique-gitops-pipeline/
 │   ├── actions/trivy-scan/   # Composite action: image scan, SARIF, SBOM
 │   └── workflows/            # CI theo ngôn ngữ, Terraform, Security Scan
 ├── docs/infrastructure/      # Sơ đồ HLD/LLD (draw.io + spec YAML + PNG)
+├── docs/manuals/             # Tài liệu thiết kế kỹ thuật và sổ tay vận hành (Typst + PDF, EN/VI)
 ├── gitops/
 │   ├── argocd/               # ApplicationSet, namespace app, monitoring
 │   ├── namespaces/           # Namespace dev-eks (Pod Security Admission)

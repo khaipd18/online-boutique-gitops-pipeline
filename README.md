@@ -41,6 +41,17 @@ The design follows what a production setup would need: least privilege for the p
 
 ---
 
+## Documentation
+
+| Document | Content | PDF |
+|---|---|---|
+| Technical Design Document (OBE-TDD-001) | Infrastructure, Kubernetes platform, CI/CD and security design, design decisions, risks | [English](docs/manuals/technical-design.en.pdf) · [Tiếng Việt](docs/manuals/technical-design.vi.pdf) |
+| Operations Runbook (OBE-RUN-001) | Access, bootstrap and teardown, routine procedures, monitoring, 14 incident playbooks, disaster recovery | [English](docs/manuals/operations-runbook.en.pdf) · [Tiếng Việt](docs/manuals/operations-runbook.vi.pdf) |
+
+The PDFs are built from Typst sources in [`docs/manuals/`](docs/manuals) with `docs/manuals/build.sh` (Typst 0.15 or later; fonts are included).
+
+---
+
 ## Architecture
 
 ### Infrastructure on AWS
@@ -349,6 +360,8 @@ Clean up with `kind delete cluster --name boutique`.
 
 ## Day-to-day operations
 
+The full procedures and incident playbooks are in the [Operations Runbook](docs/manuals/operations-runbook.en.pdf).
+
 - **Ship a new version of a service:** push to `src/<service>` on `main`. CI tests, builds, scans and pushes the image, the bot updates the tag, and Argo CD syncs.
 - **Change infrastructure through a pull request:** open a PR that changes `terraform/` → Checkov runs, then `terraform plan` with the read-only role (`-lock=false`) → review the plan in the log → merge into `main` → approve the `production` deployment → `terraform apply` with the admin role. PRs from forks get no OIDC token from GitHub, so only Checkov runs for them.
 - **Branch protection:** the `protect-main` ruleset blocks force pushes and deletion of `main` and requires a pull request; repository admins can bypass it. No status check is required, because every workflow runs only for matching paths and a required check that never starts would block the PR.
@@ -384,6 +397,7 @@ online-boutique-gitops-pipeline/
 │   ├── actions/trivy-scan/   # Composite action: image scan, SARIF, SBOM
 │   └── workflows/            # Per-language CI, Terraform, Security Scan
 ├── docs/infrastructure/      # HLD/LLD diagrams (draw.io + YAML spec + PNG)
+├── docs/manuals/             # Technical Design Document and Operations Runbook (Typst + PDF, EN/VI)
 ├── gitops/
 │   ├── argocd/               # ApplicationSet, namespace app, monitoring
 │   ├── namespaces/           # dev-eks namespace (Pod Security Admission)
