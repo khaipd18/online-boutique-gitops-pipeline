@@ -103,6 +103,12 @@ variable "eks_vpc_config_override" {
   }
 }
 
+variable "eks_log_retention_days" {
+  description = "Number of days to keep the EKS control plane logs in CloudWatch Logs."
+  type        = number
+  default     = 365
+}
+
 variable "eks_k8s_version" {
   description = "The Kubernetes version to use for the EKS cluster."
   type        = string

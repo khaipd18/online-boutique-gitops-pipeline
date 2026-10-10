@@ -157,6 +157,8 @@ module "eks" {
 
   k8s_version = var.eks_k8s_version
 
+  log_retention_days = var.eks_log_retention_days
+
   vpc_id = module.vpc.output_vpc_id
 
   vpc_config = local.eks_vpc_conf_finals

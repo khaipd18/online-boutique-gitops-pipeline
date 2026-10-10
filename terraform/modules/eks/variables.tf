@@ -4,6 +4,11 @@ variable "cluster_name" {
   type        = string
 }
 
+variable "log_retention_days" {
+  description = "Number of days to keep the control plane logs in CloudWatch Logs."
+  type        = number
+}
+
 variable "vpc_id" {
   description = "The ID of the VPC where the EKS cluster will be created."
   type        = string

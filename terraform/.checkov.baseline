@@ -4,6 +4,12 @@
             "file": "/modules/eks/main.tf",
             "findings": [
                 {
+                    "resource": "module.eks.aws_cloudwatch_log_group.cluster",
+                    "check_ids": [
+                        "CKV_AWS_158"
+                    ]
+                },
+                {
                     "resource": "module.eks.aws_eks_cluster.eks_cluster",
                     "check_ids": [
                         "CKV_AWS_39",
