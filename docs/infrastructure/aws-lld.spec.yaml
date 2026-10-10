@@ -184,7 +184,7 @@ pages:
                       - {id: eks, service: eks, label: "khaipd18-eks-cluster", details: ["Argo CD ApplicationSet", "namespace dev-eks"]}
                   - group: layout
                     items:
-                      - {id: tfstate, service: s3, label: "khaipd18-devops-project-tf-state", details: ["key dev/terraform.tfstate", "encrypted"]}
+                      - {id: tfstate, service: s3, label: "khaipd18-obe-tf-state-445817183958", details: ["key dev/terraform.tfstate", "encrypted"]}
                       - {id: tflock, service: dynamodb, label: "…-terraform-state-lock", details: ["LockID"]}
       - id: roles
         table:

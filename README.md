@@ -74,7 +74,7 @@ Inbound traffic enters through the Internet Gateway to the load balancer in the 
 
 **CI/CD and IAM OIDC**: which role can be assumed from where, with which permissions, against which resources.
 
-![AWS LLD CI/CD and IAM](docs/infrastructure/images/aws-lld-cicd-oidc-roles.png)
+![AWS LLD CI/CD and IAM](docs/infrastructure/images/aws-lld-cicd-iam-state.png)
 
 Editable draw.io sources: [`aws-hld.drawio`](docs/infrastructure/aws-hld.drawio), [`aws-lld.drawio`](docs/infrastructure/aws-lld.drawio). The diagrams are generated from YAML specs ([`aws-hld.spec.yaml`](docs/infrastructure/aws-hld.spec.yaml), [`aws-lld.spec.yaml`](docs/infrastructure/aws-lld.spec.yaml)) whose values come straight from `terraform/`.
 </details>

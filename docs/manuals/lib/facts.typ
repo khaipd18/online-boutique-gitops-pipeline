@@ -5,7 +5,7 @@
 #let region = "ap-southeast-1"
 #let cluster = "khaipd18-eks-cluster"
 #let namespace = "dev-eks"
-#let state-bucket = "khaipd18-devops-project-tf-state"
+#let state-bucket = "khaipd18-obe-tf-state-445817183958"
 #let state-key = "dev/terraform.tfstate"
 #let lock-table = "khaipd18-devops-project-terraform-state-lock"
 #let doc-date = "2026-10-09"
@@ -93,7 +93,7 @@
   hld: "/docs/infrastructure/images/aws-architecture.png",
   network: "/docs/infrastructure/images/aws-lld-network-detail.png",
   sg: "/docs/infrastructure/images/aws-lld-security-groups.png",
-  cicd: "/docs/infrastructure/images/aws-lld-cicd-oidc-roles.png",
+  cicd: "/docs/infrastructure/images/aws-lld-cicd-iam-state.png",
   pipeline: "/docs/infrastructure/images/aws-delivery-pipeline.png",
   traffic: "/docs/infrastructure/images/aws-in-cluster-traffic.png",
 )
