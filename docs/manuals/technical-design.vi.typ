@@ -10,7 +10,7 @@
   title: "Tài liệu thiết kế kỹ thuật",
   subtitle: "Hệ thống được xây thế nào và vì sao",
   doc-id: "OBE-TDD-001-VI",
-  version: "2.0",
+  version: "2.1",
   date: facts.doc-date,
   status: "Đã duyệt cho môi trường dev",
   owner: "khaipd18 (DevOps / Cloud)",
@@ -22,7 +22,8 @@
     ("1.0", "2026-10-09", "Phát hành lần đầu.", "khaipd18"),
     ("1.1", "2026-10-10", "Chạy thật trên tài khoản mới; Terraform quản lý log group.", "khaipd18"),
     ("1.2", "2026-10-10", "Triển khai đầy đủ trên EKS, ảnh chụp, access entry, ba node, quyết định D11.", "khaipd18"),
-    ("2.0", facts.doc-date, "Viết lại cho ngắn gọn: mỗi mảng một trang, bỏ phần lặp.", "khaipd18"),
+    ("2.0", "2026-10-10", "Viết lại cho ngắn gọn: mỗi mảng một trang, bỏ phần lặp.", "khaipd18"),
+    ("2.1", facts.doc-date, "GitOps write-back qua pull request khi main có ruleset.", "khaipd18"),
   ),
   related: (
     [OBE-RUN-001-VI Sổ tay vận hành: cách chạy và xử lý sự cố],
@@ -117,7 +118,7 @@ Mọi service chạy trong namespace #raw(facts.namespace). Tất cả release d
 
 #figure(image(facts.fig.pipeline, width: 100%), caption: [Từ commit tới cluster])
 
-*CI (mỗi ngôn ngữ một workflow).* Với mỗi service thay đổi: lint, test và dependency scan → build image → quét bằng Trivy (kết quả lên tab Security của GitHub, lưu SBOM) → push lên ECR với tag là git SHA → ghi tag vào `gitops/dev-eks/`. Khi chưa có biến `AWS_ACCOUNT_ID`, CI vẫn lint, test, build, quét và bỏ qua các bước AWS.
+*CI (mỗi ngôn ngữ một workflow).* Với mỗi service thay đổi: lint, test và dependency scan → build image → quét bằng Trivy (kết quả lên tab Security của GitHub, lưu SBOM) → push lên ECR với tag là git SHA → ghi tag vào `gitops/dev-eks/` qua một pull request do bot tự mở và tự merge (`main` chỉ nhận pull request). Khi chưa có biến `AWS_ACCOUNT_ID`, CI vẫn lint, test, build, quét và bỏ qua các bước AWS.
 
 #table(
   columns: (auto, 1fr, 1fr, 1fr),
@@ -192,10 +193,9 @@ Các bước ghi *warning* cần sửa code upstream mới hết, nên chỉ hi�
 
 = Rủi ro và roadmap <risks>
 
-*Rủi ro đã biết:* ruleset của `main` chặn commit GitOps của bot CI (phải tạm tắt khi bootstrap); một NAT Gateway là điểm lỗi đơn; mười service chỉ có một replica; giỏ hàng mất khi `redis-cart` khởi động lại; vài image có lỗ hổng đã biết; EKS API endpoint mở ra internet (vẫn cần xác thực IAM).
+*Rủi ro đã biết:* một NAT Gateway là điểm lỗi đơn; mười service chỉ có một replica; giỏ hàng mất khi `redis-cart` khởi động lại; vài image có lỗ hổng đã biết; EKS API endpoint mở ra internet (vẫn cần xác thực IAM).
 
 *Roadmap*, theo thứ tự:
-+ Cho bot CI cập nhật `gitops/` khi có ruleset (deploy key hoặc pull request).
 + Nâng dependency của các service, rồi chuyển các gate lỗ hổng sang chặn.
 + Giới hạn EKS public endpoint; thu hẹp `ecr-endpoint-sg` về `tcp/443`.
 + Regional NAT gateway; AWS Load Balancer Controller có TLS.

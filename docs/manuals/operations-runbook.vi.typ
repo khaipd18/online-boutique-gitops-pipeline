@@ -13,7 +13,7 @@
   title: "Sổ tay vận hành",
   subtitle: "Cách chạy, kiểm tra, thay đổi và tắt hệ thống",
   doc-id: "OBE-RUN-001-VI",
-  version: "2.0",
+  version: "2.1",
   date: facts.doc-date,
   status: "Đã duyệt cho môi trường dev",
   owner: "khaipd18 (DevOps / Cloud)",
@@ -25,7 +25,8 @@
     ("1.0", "2026-10-09", "Phát hành lần đầu.", "khaipd18"),
     ("1.1", "2026-10-10", "Chạy thật trên tài khoản mới; Terraform quản lý log group của control plane.", "khaipd18"),
     ("1.2", "2026-10-10", "Thêm ảnh chụp từ lần triển khai đầy đủ trên EKS; thêm IR-15.", "khaipd18"),
-    ("2.0", facts.doc-date, "Viết lại cho ngắn gọn: các việc chính theo từng bước đơn giản, mọi sự cố gộp vào một bảng, phần nâng cao chuyển xuống phụ lục.", "khaipd18"),
+    ("2.0", "2026-10-10", "Viết lại cho ngắn gọn: các việc chính theo từng bước đơn giản, mọi sự cố gộp vào một bảng, phần nâng cao chuyển xuống phụ lục.", "khaipd18"),
+    ("2.1", facts.doc-date, "CI ghi tag image qua pull request; không còn phải tạm tắt quy tắc bảo vệ nhánh.", "khaipd18"),
   ),
   related: (
     [OBE-TDD-001-VI Tài liệu thiết kế kỹ thuật: vì sao hệ thống được xây như vậy],
@@ -104,12 +105,10 @@ kubectl get nodes                    # 3 node, đều Ready
   kubectl apply -f gitops/argocd/applicationset.yaml
   kubectl apply -f gitops/argocd/monitoring.yaml --server-side
   ```
-+ *Build image.* Quy tắc bảo vệ nhánh `main` chặn bot CI, nên tạm tắt nó một lúc:
++ *Build image.* CI đẩy image lên ECR rồi ghi tag mới vào Git qua các pull request nhỏ do nó tự merge:
   ```bash
-  gh api -X PUT repos/khaipd18/online-boutique-gitops-pipeline/rulesets/24705847 -f enforcement=disabled
   for w in go dotnet java node py; do gh workflow run $w-services-ci.yaml --ref main; done
-  # chờ 5 run xanh hết: gh run list --limit 5
-  gh api -X PUT repos/khaipd18/online-boutique-gitops-pipeline/rulesets/24705847 -f enforcement=active
+  gh run list --limit 5            # chờ 5 run xanh hết
   ```
 + *Kiểm tra:* làm theo mục tiếp theo. Mọi thứ phải giống ảnh trong mục đó.
 
@@ -152,7 +151,7 @@ kubectl -n monitoring get secret kube-prometheus-stack-grafana -o jsonpath='{.da
 == Ra bản mới cho một service
 
 + Merge thay đổi trong `src/<service>/` vào `main`.
-+ GitHub Actions test, build và quét image, đẩy lên ECR rồi ghi tag mới vào `gitops/dev-eks/values-<service>.yaml`.
++ GitHub Actions test, build và quét image, đẩy lên ECR rồi ghi tag mới vào `gitops/dev-eks/values-<service>.yaml` qua một pull request do nó tự merge.
 + Khoảng 3 phút sau Argo CD thấy tag mới và cập nhật pod.
 
 Kiểm tra: `kubectl -n dev-eks rollout status deploy/<service>-dev`
@@ -216,7 +215,7 @@ Tìm dấu hiệu trong bảng rồi làm theo cách sửa. Lệnh ở cột gi�
   columns: (26%, 1fr, 1fr),
   [Dấu hiệu], [Nguyên nhân thường gặp / cách xem], [Cách sửa],
   [CI lỗi ở bước "Configure AWS credentials"], [Sai `AWS_ACCOUNT_ID`, hoặc chưa có IAM role. `gh variable list`], [Sửa biến, hoặc tạo role bằng lần `terraform apply` đầu tiên],
-  [CI lỗi ở bước "Update GitOps", báo `GH013`], [Quy tắc của `main` chặn bot], [Tạm tắt quy tắc trong lúc CI chạy (Dựng môi trường, bước 5)],
+  [CI lỗi ở bước "Update GitOps through a pull request"], [GitHub Actions chưa được phép tạo pull request trong repository], [Settings → Actions → General → bật "Allow GitHub Actions to create and approve pull requests"],
   [Terraform báo `Error acquiring the state lock`], [Một lần chạy trước bị dừng giữa chừng. Chắc chắn không có gì đang chạy: `gh run list`], [`terraform force-unlock <lock-id>`],
   [Job Terraform Apply đứng ở *Waiting*], [Đang chờ bạn duyệt], [Duyệt trên GitHub (Thay đổi hạ tầng)],
   [App trên Argo CD *OutOfSync* hoặc *Degraded*], [Values sai hoặc pod không khởi động được. `kubectl -n argocd describe application <app>`], [Sửa values trong Git],

@@ -150,7 +150,7 @@ Steps at *warning* level are the ones that can only be fixed by changing Google'
 
 **Build → scan → push:** the composite action `.github/actions/trivy-scan` scans the image, publishes HIGH/CRITICAL vulnerabilities to GitHub code scanning (SARIF) and stores a CycloneDX SBOM as an artifact. Because ECR tags are immutable, CI skips the build when the image for that commit already exists.
 
-**GitOps write-back:** after pushing the image, CI uses `yq` to write `image.repository` and `image.tag` (the git SHA) into `gitops/dev-eks/values-<service>.yaml`, and a bot commits and pushes it back. A retry loop handles the race when several services build at the same time.
+**GitOps write-back:** after pushing the image, CI uses `yq` to write `image.repository` and `image.tag` (the git SHA) into `gitops/dev-eks/values-<service>.yaml`, through a pull request that the bot opens and merges itself (composite action `.github/actions/gitops-update`), because `main` only accepts changes through pull requests. A retry handles several services finishing at the same time.
 </details>
 
 ### Continuous Delivery with Argo CD
@@ -373,7 +373,7 @@ The full procedures and incident playbooks are in the [Operations Runbook](docs/
 
 - **Ship a new version of a service:** push to `src/<service>` on `main`. CI tests, builds, scans and pushes the image, the bot updates the tag, and Argo CD syncs.
 - **Change infrastructure through a pull request:** open a PR that changes `terraform/` → Checkov runs, then `terraform plan` with the read-only role (`-lock=false`) → review the plan in the log → merge into `main` → approve the `production` deployment → `terraform apply` with the admin role. PRs from forks get no OIDC token from GitHub, so only Checkov runs for them.
-- **Branch protection:** the `protect-main` ruleset blocks force pushes and deletion of `main` and requires a pull request; repository admins can bypass it. No status check is required, because every workflow runs only for matching paths and a required check that never starts would block the PR.
+- **Branch protection:** the `protect-main` ruleset blocks force pushes and deletion of `main` and requires a pull request; repository admins can bypass it. No status check is required, because every workflow runs only for matching paths and a required check that never starts would block the PR. The CI bot writes image tags through pull requests, so it needs no bypass.
 - **Accept a new Checkov finding:** fix the configuration first. If the finding is judged acceptable, regenerate the baseline in a PR so it gets reviewed:
   `checkov --config-file .checkov.yaml -d terraform --framework terraform --create-baseline`
 - **Switch AWS accounts:** repeat steps 1–3 of the deployment and change `AWS_ACCOUNT_ID`. If the account is shared with another project, check for name clashes first: an account can only have one OIDC provider for `token.actions.githubusercontent.com`, and IAM role and policy names are unique within an account.
@@ -385,7 +385,6 @@ The full procedures and incident playbooks are in the [Operations Runbook](docs/
 What comes next, in order of priority:
 
 - [ ] Upgrade the services' dependencies (possibly automated with Dependabot), then set `blocking: 'true'` for Trivy, `govulncheck` and `npm audit`.
-- [ ] Let the CI bot update `gitops/` again: the `main` ruleset now blocks its direct push, and a personal repository cannot add GitHub Actions to the bypass list. Use a deploy key on the bypass list, or have the bot open pull requests.
 - [ ] Restrict the EKS public endpoint (currently open to `0.0.0.0/0`) or move to a private endpoint only.
 - [ ] Narrow `ecr-endpoint-sg` from all protocols down to `tcp/443` from the VPC (found while drawing the LLD security group page).
 - [ ] Replace the single zonal NAT Gateway (shared by both AZs today to save cost) with a [regional NAT gateway](https://docs.aws.amazon.com/vpc/latest/userguide/nat-gateways-regional.html), which spans the AZs on its own and needs no public subnet.

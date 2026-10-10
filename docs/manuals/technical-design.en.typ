@@ -7,7 +7,7 @@
   title: "Technical Design Document",
   subtitle: "How the platform is built and why",
   doc-id: "OBE-TDD-001",
-  version: "2.0",
+  version: "2.1",
   date: facts.doc-date,
   status: "Approved for the dev environment",
   owner: "khaipd18 (DevOps / Cloud)",
@@ -19,7 +19,8 @@
     ("1.0", "2026-10-09", "First issue.", "khaipd18"),
     ("1.1", "2026-10-10", "First run on the new account; managed log group.", "khaipd18"),
     ("1.2", "2026-10-10", "Full EKS deployment, screenshots, access entries, three nodes, decision D11.", "khaipd18"),
-    ("2.0", facts.doc-date, "Rewritten to be shorter: one page per area, repeated content removed.", "khaipd18"),
+    ("2.0", "2026-10-10", "Rewritten to be shorter: one page per area, repeated content removed.", "khaipd18"),
+    ("2.1", facts.doc-date, "GitOps write-back through pull requests under the main ruleset.", "khaipd18"),
   ),
   related: (
     [OBE-RUN-001 Operations Runbook: how to run and fix the platform],
@@ -113,7 +114,7 @@ All services run in namespace #raw(facts.namespace). Every release uses the same
 
 #figure(image(facts.fig.pipeline, width: 100%), caption: [From commit to cluster])
 
-*CI (one workflow per language).* For each changed service: lint, test and dependency scan → build the image → Trivy scan (results in the GitHub Security tab, SBOM saved) → push to ECR with the git SHA as tag → write the tag into `gitops/dev-eks/`. Without the `AWS_ACCOUNT_ID` variable, CI still lints, tests, builds and scans, and skips the AWS steps.
+*CI (one workflow per language).* For each changed service: lint, test and dependency scan → build the image → Trivy scan (results in the GitHub Security tab, SBOM saved) → push to ECR with the git SHA as tag → write the tag into `gitops/dev-eks/` through a pull request that the bot opens and merges itself (`main` only accepts pull requests). Without the `AWS_ACCOUNT_ID` variable, CI still lints, tests, builds and scans, and skips the AWS steps.
 
 #table(
   columns: (auto, 1fr, 1fr, 1fr),
@@ -188,10 +189,9 @@ Checks marked *warning* need changes in the upstream code, so they are shown but
 
 = Risks and roadmap <risks>
 
-*Known risks:* the `main` ruleset blocks the CI bot's GitOps commit (switched off during bootstrap); one NAT Gateway is a single point of failure; ten services have one replica; carts are lost when `redis-cart` restarts; several images have known vulnerabilities; the EKS API endpoint is open to the internet (IAM still required).
+*Known risks:* one NAT Gateway is a single point of failure; ten services have one replica; carts are lost when `redis-cart` restarts; several images have known vulnerabilities; the EKS API endpoint is open to the internet (IAM still required).
 
 *Roadmap*, in order:
-+ Let the CI bot update `gitops/` under the ruleset (deploy key or pull requests).
 + Upgrade service dependencies, then make the vulnerability gates blocking.
 + Restrict the EKS public endpoint; narrow `ecr-endpoint-sg` to `tcp/443`.
 + Regional NAT gateway; AWS Load Balancer Controller with TLS.

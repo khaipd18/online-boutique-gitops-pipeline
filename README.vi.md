@@ -150,7 +150,7 @@ Những bước ở mức *warning* là những bước mà muốn sửa thì ph
 
 **Build → scan → push:** composite action `.github/actions/trivy-scan` quét image, đẩy lỗ hổng HIGH/CRITICAL lên GitHub code scanning (SARIF) và lưu SBOM CycloneDX làm artifact. Vì tag ECR là immutable, CI tự bỏ qua build nếu image của commit đó đã có sẵn.
 
-**GitOps write-back:** sau khi push image, CI dùng `yq` ghi `image.repository` và `image.tag` (git SHA) vào `gitops/dev-eks/values-<service>.yaml`, rồi bot commit và push lại. Có retry loop để xử lý race condition khi nhiều service cùng build một lúc.
+**GitOps write-back:** sau khi push image, CI dùng `yq` ghi `image.repository` và `image.tag` (git SHA) vào `gitops/dev-eks/values-<service>.yaml`, qua một pull request do bot tự mở và tự merge (composite action `.github/actions/gitops-update`), vì `main` chỉ nhận thay đổi qua pull request. Có retry để xử lý khi nhiều service cùng build xong một lúc.
 </details>
 
 ### Continuous Delivery với Argo CD
@@ -373,7 +373,7 @@ Quy trình đầy đủ và các kịch bản xử lý sự cố nằm trong [S�
 
 - **Ra bản mới cho một service:** push vào `src/<service>` trên `main`. CI test, build, scan, đẩy image, bot cập nhật tag, Argo CD sync.
 - **Thay đổi hạ tầng qua pull request:** mở PR sửa `terraform/` → Checkov chạy, rồi `terraform plan` bằng role read-only (`-lock=false`) → review plan trong log → merge vào `main` → duyệt deployment `production` → `terraform apply` bằng role admin. PR từ fork không được GitHub cấp OIDC token nên chỉ chạy Checkov.
-- **Branch protection:** ruleset `protect-main` chặn force push và xóa nhánh `main`, đồng thời bắt buộc qua pull request; admin của repo được bypass. Không đặt status check bắt buộc, vì workflow nào cũng chỉ chạy khi đúng path, và một check bắt buộc không bao giờ chạy sẽ chặn PR mãi.
+- **Branch protection:** ruleset `protect-main` chặn force push và xóa nhánh `main`, đồng thời bắt buộc qua pull request; admin của repo được bypass. Không đặt status check bắt buộc, vì workflow nào cũng chỉ chạy khi đúng path, và một check bắt buộc không bao giờ chạy sẽ chặn PR mãi. Bot CI ghi tag image qua pull request nên không cần bypass.
 - **Chấp nhận một phát hiện Checkov mới:** ưu tiên sửa cấu hình. Nếu đã đánh giá là chấp nhận được, tạo lại baseline trong một PR để có người review:
   `checkov --config-file .checkov.yaml -d terraform --framework terraform --create-baseline`
 - **Đổi tài khoản AWS:** làm lại bước 1–3 ở phần triển khai và đổi `AWS_ACCOUNT_ID`. Nếu tài khoản dùng chung với dự án khác, kiểm tra trùng tên trước: mỗi tài khoản chỉ có một OIDC provider cho `token.actions.githubusercontent.com`, và tên IAM role/policy là duy nhất trong tài khoản.
@@ -385,7 +385,6 @@ Quy trình đầy đủ và các kịch bản xử lý sự cố nằm trong [S�
 Các việc tiếp theo, xếp theo mức ưu tiên:
 
 - [ ] Nâng dependency của các service (có thể tự động bằng Dependabot) rồi bật `blocking: 'true'` cho Trivy, `govulncheck`, `npm audit`.
-- [ ] Cho bot CI cập nhật `gitops/` trở lại: ruleset của `main` giờ chặn bot push thẳng, và repo cá nhân không thêm được GitHub Actions vào danh sách bypass. Dùng deploy key nằm trong danh sách bypass, hoặc cho bot mở pull request.
 - [ ] Giới hạn EKS public endpoint (hiện mở `0.0.0.0/0`) hoặc chuyển hẳn sang private endpoint.
 - [ ] Thu hẹp `ecr-endpoint-sg` từ mọi giao thức về `tcp/443` từ VPC (phát hiện khi vẽ LLD security group).
 - [ ] Thay NAT Gateway zonal duy nhất (hiện dùng chung cho cả hai AZ để tiết kiệm chi phí) bằng [regional NAT gateway](https://docs.aws.amazon.com/vpc/latest/userguide/nat-gateways-regional.html), tự trải qua các AZ và không cần public subnet.

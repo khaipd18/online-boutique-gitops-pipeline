@@ -10,7 +10,7 @@
   title: "Operations Runbook",
   subtitle: "How to run, check, change and stop the platform",
   doc-id: "OBE-RUN-001",
-  version: "2.0",
+  version: "2.1",
   date: facts.doc-date,
   status: "Approved for the dev environment",
   owner: "khaipd18 (DevOps / Cloud)",
@@ -22,7 +22,8 @@
     ("1.0", "2026-10-09", "First issue.", "khaipd18"),
     ("1.1", "2026-10-10", "First run on the new account; managed control plane log group.", "khaipd18"),
     ("1.2", "2026-10-10", "Screenshots from the full EKS deployment; IR-15.", "khaipd18"),
-    ("2.0", facts.doc-date, "Rewritten to be shorter: the main tasks in plain steps, all problems in one table, advanced topics moved to the appendix.", "khaipd18"),
+    ("2.0", "2026-10-10", "Rewritten to be shorter: the main tasks in plain steps, all problems in one table, advanced topics moved to the appendix.", "khaipd18"),
+    ("2.1", facts.doc-date, "CI writes image tags through pull requests; no need to switch off the branch rule any more.", "khaipd18"),
   ),
   related: (
     [OBE-TDD-001 Technical Design Document: why the platform is built this way],
@@ -100,12 +101,10 @@ kubectl get nodes                    # 3 nodes, all Ready
   kubectl apply -f gitops/argocd/applicationset.yaml
   kubectl apply -f gitops/argocd/monitoring.yaml --server-side
   ```
-+ *Build the images.* The `main` branch rule blocks the CI bot, so switch it off for a moment:
++ *Build the images.* CI pushes them to ECR and writes the new tags into Git through small pull requests that it merges itself:
   ```bash
-  gh api -X PUT repos/khaipd18/online-boutique-gitops-pipeline/rulesets/24705847 -f enforcement=disabled
   for w in go dotnet java node py; do gh workflow run $w-services-ci.yaml --ref main; done
-  # wait until the 5 runs are green: gh run list --limit 5
-  gh api -X PUT repos/khaipd18/online-boutique-gitops-pipeline/rulesets/24705847 -f enforcement=active
+  gh run list --limit 5            # wait until the 5 runs are green
   ```
 + *Check it works:* follow the next section. Everything should look like the pictures there.
 
@@ -149,7 +148,7 @@ kubectl -n monitoring get secret kube-prometheus-stack-grafana -o jsonpath='{.da
 == Release a new version of a service
 
 + Merge your change under `src/<service>/` into `main`.
-+ GitHub Actions tests, builds and scans the image, pushes it to ECR and writes the new tag into `gitops/dev-eks/values-<service>.yaml`.
++ GitHub Actions tests, builds and scans the image, pushes it to ECR and writes the new tag into `gitops/dev-eks/values-<service>.yaml` through a pull request it merges itself.
 + Argo CD sees the new tag within about 3 minutes and updates the pods.
 
 Check: `kubectl -n dev-eks rollout status deploy/<service>-dev`
@@ -213,7 +212,7 @@ Find the symptom in the table, then apply the fix. The command in the middle col
   columns: (26%, 1fr, 1fr),
   [Symptom], [Likely reason / how to see it], [Fix],
   [CI fails at "Configure AWS credentials"], [Wrong `AWS_ACCOUNT_ID`, or the IAM roles do not exist yet. `gh variable list`], [Fix the variable, or create the roles with the first `terraform apply`],
-  [CI fails at "Update GitOps" with `GH013`], [The `main` rule blocks the bot], [Switch the rule off while CI runs (Start the environment, step 5)],
+  [CI fails at "Update GitOps through a pull request"], [GitHub Actions may not create pull requests in this repository], [Settings → Actions → General → tick "Allow GitHub Actions to create and approve pull requests"],
   [Terraform: `Error acquiring the state lock`], [An earlier run stopped half-way. Make sure nothing else runs: `gh run list`], [`terraform force-unlock <lock-id>`],
   [Terraform Apply job is *Waiting*], [It needs your approval], [Approve it in GitHub (Change the infrastructure)],
   [Argo CD app *OutOfSync* or *Degraded*], [Bad values or a pod that does not start. `kubectl -n argocd describe application <app>`], [Fix the values in Git],
