@@ -70,7 +70,7 @@ Inbound traffic enters through the Internet Gateway to the load balancer in the 
 
 **Security group flow**: traffic flows with their ports, and the inbound rules of every security group.
 
-![AWS LLD security groups](docs/infrastructure/images/aws-lld-security-groups.png)
+![AWS LLD security groups](docs/infrastructure/images/aws-lld-security-group-flow.png)
 
 **CI/CD and IAM OIDC**: which role can be assumed from where, with which permissions, against which resources.
 

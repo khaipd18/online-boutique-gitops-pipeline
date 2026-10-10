@@ -70,7 +70,7 @@ Traffic từ internet đi vào qua Internet Gateway tới load balancer nằm tr
 
 **Security group flow**: luồng traffic kèm port, bảng rule inbound của từng security group.
 
-![AWS LLD security groups](docs/infrastructure/images/aws-lld-security-groups.png)
+![AWS LLD security groups](docs/infrastructure/images/aws-lld-security-group-flow.png)
 
 **CI/CD và IAM OIDC**: role nào được assume từ đâu, quyền gì, tác động lên tài nguyên nào.
 

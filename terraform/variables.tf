@@ -153,9 +153,11 @@ variable "eks_node_group_scaling_config" {
     max_size     = number
     min_size     = number
   })
+  # Three t3.medium nodes: the full stack (Argo CD, monitoring and 12 releases) needs about 37 pods, close to the
+  # pod limit of two nodes. max_size leaves room for one more node during upgrades.
   default = {
-    desired_size = 2
-    max_size     = 3
+    desired_size = 3
+    max_size     = 4
     min_size     = 1
   }
 }

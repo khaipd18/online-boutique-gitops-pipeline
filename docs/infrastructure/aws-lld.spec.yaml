@@ -130,7 +130,7 @@ pages:
                   - {port: "tcp/30000-32767", from: sg_lb, description: "NodePort, added by Kubernetes"}
                 items:
                   - {id: cp, service: eks, label: "EKS control plane ENIs", details: ["Kubernetes 1.35", "public + private endpoint"]}
-                  - {id: nodes, service: ec2, label: "EKS managed nodes", details: ["t3.medium · AL2023", "min 1 / desired 2 / max 3"]}
+                  - {id: nodes, service: ec2, label: "EKS managed nodes", details: ["t3.medium · AL2023", "min 1 / desired 3 / max 4"]}
           # Finding: the rule description says HTTPS but it allows every protocol from
           # the VPC CIDR; tcp/443 would be enough for the endpoints.
           - group: layout

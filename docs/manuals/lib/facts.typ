@@ -93,7 +93,7 @@
 #let fig = (
   hld: "/docs/infrastructure/images/aws-architecture.png",
   network: "/docs/infrastructure/images/aws-lld-network-detail.png",
-  sg: "/docs/infrastructure/images/aws-lld-security-groups.png",
+  sg: "/docs/infrastructure/images/aws-lld-security-group-flow.png",
   cicd: "/docs/infrastructure/images/aws-lld-cicd-iam-state.png",
   pipeline: "/docs/infrastructure/images/aws-delivery-pipeline.png",
   traffic: "/docs/infrastructure/images/aws-in-cluster-traffic.png",
