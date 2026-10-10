@@ -5,8 +5,8 @@ serviceAccount:
   create: true
   name: "adservice"
 image:
-  repository: 797226340543.dkr.ecr.ap-southeast-1.amazonaws.com/adservice
-  tag: "96a060669b26798151ca03a153f63aa1af7c6c22"
+  repository: 445817183958.dkr.ecr.ap-southeast-1.amazonaws.com/adservice
+  tag: "18da8f445f90cf00ebb100c9e9983639a4f5eaae"
   pullPolicy: Always
 service:
   enabled: true
