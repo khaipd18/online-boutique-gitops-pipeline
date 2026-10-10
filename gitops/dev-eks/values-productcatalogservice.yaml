@@ -1,23 +1,18 @@
-deployment: 
+deployment:
   enabled: true
-
 replicaCount: 1
-
 serviceAccount:
   create: true
   name: "productcatalogservice"
-
 image:
-  repository: 797226340543.dkr.ecr.ap-southeast-1.amazonaws.com/productcatalogservice
-  tag: "local"
+  repository: 445817183958.dkr.ecr.ap-southeast-1.amazonaws.com/productcatalogservice
+  tag: "18da8f445f90cf00ebb100c9e9983639a4f5eaae"
   pullPolicy: Always
-
 service:
   enabled: true
   type: ClusterIP
   port: 3550
   targetPort: 3550
-
 env:
   PORT: "3550"
 resources:
@@ -27,7 +22,6 @@ resources:
   requests:
     cpu: 100m
     memory: 64Mi
-    
 probes:
   readiness:
     grpc:
