@@ -5,8 +5,8 @@ serviceAccount:
   create: true
   name: "cartservice"
 image:
-  repository: 797226340543.dkr.ecr.ap-southeast-1.amazonaws.com/cartservice
-  tag: "b6416b0a40885c63f7047a872ccdd1272cf1bd4c"
+  repository: 445817183958.dkr.ecr.ap-southeast-1.amazonaws.com/cartservice
+  tag: "18da8f445f90cf00ebb100c9e9983639a4f5eaae"
   pullPolicy: Always
 service:
   enabled: true
