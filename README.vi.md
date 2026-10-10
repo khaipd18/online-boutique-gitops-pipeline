@@ -31,7 +31,7 @@ Thiết kế bám theo yêu cầu của một môi trường production: quyền
 
 ## Highlights
 
-- **73 tài nguyên AWS** dựng hoàn toàn bằng Terraform module: VPC 2 AZ, EKS, ECR, VPC endpoints, IAM OIDC.
+- **74 tài nguyên AWS** dựng hoàn toàn bằng Terraform module: VPC 2 AZ, EKS, ECR, VPC endpoints, IAM OIDC.
 - **Không dùng long-lived credentials.** GitHub Actions vào AWS bằng OIDC, pod dùng IRSA. Trust policy khóa đến từng claim `sub`: chỉ `main` mới được push image, `apply` chỉ chạy sau khi có người duyệt environment `production`, còn pull request chỉ được `plan` với role read-only.
 - **5 CI pipeline cho 5 ngôn ngữ**, chỉ build đúng service có thay đổi nhờ path filter và dynamic matrix.
 - **Security gates:** Checkov chặn Terraform cấu hình sai trước `plan`/`apply`, Trivy quét mọi image trước khi push và đẩy kết quả lên tab *Security* của GitHub kèm SBOM CycloneDX.
@@ -197,7 +197,9 @@ Hệ thống đã chạy thật trên EKS ở `ap-southeast-1`: Terraform dựng
 git log --grep='\[skip ci\]' --format='%h %ad %an %s' --date=short
 ```
 
-Môi trường AWS đã được gỡ sau đó để không tốn chi phí. Các lớp bảo mật thêm vào sau này (tách role plan/apply, Trivy, pod hardening, NetworkPolicy, PSA) được kiểm chứng bằng ba cách bên dưới.
+Môi trường AWS đã được gỡ sau đó để không tốn chi phí. Ngày 10/10/2026, code Terraform hiện tại được apply lên một tài khoản mới: 73 resource được tạo trong 17 phút, cả hai node `Ready` ở hai AZ, bốn add-on đều `ACTIVE` và Metrics Server trả về số liệu; sau đó `terraform destroy` xóa sạch trong 7 phút. Lần chạy này cho thấy EKS để sót log group của control plane, nên giờ Terraform tự tạo và quản lý log group đó (74 resource).
+
+Các lớp bảo mật thêm vào sau này (tách role plan/apply, Trivy, pod hardening, NetworkPolicy, PSA) được kiểm chứng bằng ba cách bên dưới.
 
 ### Test end-to-end trên Kubernetes
 
@@ -227,7 +229,7 @@ Checkout chạy trọn cũng xác nhận mọi đường gọi hợp lệ trong 
 
 | Đối tượng | Passed | Failed | Ghi chú |
 |---|---|---|---|
-| Terraform | 127 | 12 | Cả 12 đã được đánh giá và đưa vào baseline: NACL mở, EKS public endpoint, chưa mã hóa secret bằng KMS, chưa bật VPC flow log, default security group |
+| Terraform | 159 | 13 | Cả 13 đã được đánh giá và đưa vào baseline: NACL mở, EKS public endpoint, chưa dùng KMS key tự quản lý cho secret của EKS và log group của control plane (AWS đã mã hóa sẵn cả hai), chưa bật VPC flow log, default security group |
 | Kubernetes manifests (render từ Helm với values `dev-eks`) | 999 | 12 | Trước khi hardening là **128**. Còn lại: image chưa pin digest (11), `pullPolicy` của Redis (1) |
 | GitHub Actions | 371 | 5 | Input `custom_tag` của `workflow_dispatch`, rủi ro thấp vì chỉ người có quyền ghi mới chạy được |
 
@@ -246,7 +248,7 @@ Các lỗ hổng này nằm trong base image và dependency của mã nguồn g�
 ### Terraform
 
 - `terraform fmt -check -recursive` và `terraform validate` đều pass.
-- `terraform plan` chạy read-only trên một tài khoản AWS thật với state rỗng: **73 resource sẽ được tạo, không lỗi, không warning**.
+- `terraform plan` chạy read-only trên một tài khoản AWS thật với state rỗng: **74 resource sẽ được tạo, không lỗi** (có một cảnh báo deprecated cho `dynamodb_table` trong backend S3, xem Roadmap).
 - Trust policy chỉ chấp nhận đúng các claim `sub` sau (tính bằng `terraform console`):
 
   ```text

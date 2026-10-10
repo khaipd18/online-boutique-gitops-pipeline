@@ -8,7 +8,7 @@
 #let state-bucket = "khaipd18-obe-tf-state-445817183958"
 #let state-key = "dev/terraform.tfstate"
 #let lock-table = "khaipd18-devops-project-terraform-state-lock"
-#let doc-date = "2026-10-09"
+#let doc-date = "2026-10-10"
 
 // Tool and component versions pinned in the repository
 #let versions = (
@@ -85,6 +85,7 @@
   access-entries: "https://docs.aws.amazon.com/eks/latest/userguide/create-standard-access-entry-policy.html",
   inbound: "https://docs.aws.amazon.com/prescriptive-guidance/latest/load-balancer-stickiness/subnets-routing.html",
   envelope: "https://docs.aws.amazon.com/eks/latest/userguide/envelope-encryption.html",
+  logs-encryption: "https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/data-protection.html",
   nodegroup-update: "https://docs.aws.amazon.com/eks/latest/userguide/update-managed-node-group.html",
 )
 

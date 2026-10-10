@@ -14,7 +14,7 @@
   title: "Sổ tay vận hành",
   subtitle: "Triển khai, vận hành hằng ngày và xử lý sự cố",
   doc-id: "OBE-RUN-001-VI",
-  version: "1.0",
+  version: "1.1",
   date: facts.doc-date,
   status: "Đã duyệt cho môi trường dev",
   owner: "khaipd18 (DevOps / Cloud)",
@@ -23,7 +23,8 @@
   repository: facts.repo-url,
   lang: "vi",
   revisions: (
-    ("1.0", facts.doc-date, "Phát hành lần đầu: truy cập, bootstrap, quy trình thường ngày, monitoring, xử lý sự cố, gỡ môi trường.", "khaipd18"),
+    ("1.0", "2026-10-09", "Phát hành lần đầu: truy cập, bootstrap, quy trình thường ngày, monitoring, xử lý sự cố, gỡ môi trường.", "khaipd18"),
+    ("1.1", facts.doc-date, "Chạy thật trên tài khoản mới: đổi tên bucket state, Terraform quản lý log group của control plane (74 resource), đã kiểm chứng apply và destroy.", "khaipd18"),
   ),
   related: (
     [OBE-TDD-001-VI Tài liệu thiết kế kỹ thuật (`docs/manuals/technical-design.vi.pdf`)],
@@ -148,7 +149,7 @@ kubectl -n dev-eks get svc frontend-external-dev \
   cd terraform
   aws sts get-caller-identity          # phải đúng tài khoản đích
   terraform init
-  terraform plan -out tfplan           # khoảng 73 resource sẽ được tạo
+  terraform plan -out tfplan           # 74 resource sẽ được tạo
   terraform apply tfplan
   ```
 + *Cài Argo CD và các ứng dụng:*
@@ -322,7 +323,7 @@ Kubernetes 1.35 hết standard support ngày 27/03/2027 #link(facts.src.versions
   [NAT Gateway], [Theo giờ và theo GB xử lý #link(facts.src.nat-pricing)[[AWS]]],
   [Interface endpoint], [3 endpoint × 2 AZ, theo giờ và theo GB],
   [Classic Load Balancer], [Theo giờ và theo GB],
-  [CloudWatch Logs], [5 loại control plane log; đặt thời gian lưu nếu để chạy lâu],
+  [CloudWatch Logs], [5 loại control plane log; lưu 365 ngày, bị xóa cùng cluster],
   [ECR, S3, DynamoDB], [Nhỏ: dung lượng lưu trữ và số request],
 )
 

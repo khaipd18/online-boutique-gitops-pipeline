@@ -12,7 +12,7 @@
   title: "Operations Runbook",
   subtitle: "Deployment, day-to-day operations and incident response",
   doc-id: "OBE-RUN-001",
-  version: "1.0",
+  version: "1.1",
   date: facts.doc-date,
   status: "Approved for the dev environment",
   owner: "khaipd18 (DevOps / Cloud)",
@@ -21,7 +21,8 @@
   repository: facts.repo-url,
   lang: "en",
   revisions: (
-    ("1.0", facts.doc-date, "First issue: access, bootstrap, routine procedures, monitoring, incident playbooks, teardown.", "khaipd18"),
+    ("1.0", "2026-10-09", "First issue: access, bootstrap, routine procedures, monitoring, incident playbooks, teardown.", "khaipd18"),
+    ("1.1", facts.doc-date, "First run on the new account: state bucket renamed, control plane log group managed by Terraform (74 resources), apply and destroy verified.", "khaipd18"),
   ),
   related: (
     [OBE-TDD-001 Technical Design Document (`docs/manuals/technical-design.en.pdf`)],
@@ -145,7 +146,7 @@ Change the Argo CD admin password after the first login and delete `argocd-initi
   cd terraform
   aws sts get-caller-identity          # must be the target account
   terraform init
-  terraform plan -out tfplan           # expect about 73 resources to add
+  terraform plan -out tfplan           # expect 74 resources to add
   terraform apply tfplan
   ```
 + *Install Argo CD and the applications:*
@@ -319,7 +320,7 @@ Kubernetes 1.35 leaves standard support on 27 March 2027 #link(facts.src.version
   [NAT Gateway], [Per hour and per GB processed #link(facts.src.nat-pricing)[[AWS]]],
   [Interface endpoints], [3 endpoints × 2 AZs, per hour and per GB],
   [Classic Load Balancer], [Per hour and per GB],
-  [CloudWatch Logs], [5 control plane log types; set a retention period if kept running],
+  [CloudWatch Logs], [5 control plane log types; 365-day retention, deleted together with the cluster],
   [ECR, S3, DynamoDB], [Small: storage and requests],
 )
 

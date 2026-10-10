@@ -31,7 +31,7 @@ The design follows what a production setup would need: least privilege for the p
 
 ## Highlights
 
-- **73 AWS resources** built entirely with Terraform modules: a 2-AZ VPC, EKS, ECR, VPC endpoints, IAM OIDC.
+- **74 AWS resources** built entirely with Terraform modules: a 2-AZ VPC, EKS, ECR, VPC endpoints, IAM OIDC.
 - **No long-lived credentials.** GitHub Actions reaches AWS through OIDC and pods use IRSA. Trust policies are pinned down to the `sub` claim: only `main` may push images, `apply` runs only after a reviewer approves the `production` environment, and pull requests may only `plan` with a read-only role.
 - **5 CI pipelines for 5 languages**, building only the services that changed thanks to path filters and a dynamic matrix.
 - **Security gates:** Checkov blocks misconfigured Terraform before `plan`/`apply`, and Trivy scans every image before it is pushed, publishing results to GitHub's *Security* tab along with a CycloneDX SBOM.
@@ -197,7 +197,9 @@ The system has run on EKS in `ap-southeast-1`: Terraform built the infrastructur
 git log --grep='\[skip ci\]' --format='%h %ad %an %s' --date=short
 ```
 
-The AWS environment was torn down afterwards to avoid cost. The security layers added later (plan/apply role split, Trivy, pod hardening, NetworkPolicy, PSA) were verified in the three ways below.
+The AWS environment was torn down afterwards to avoid cost. On 2026-10-10 the current Terraform code was applied to a new account: 73 resources created in 17 minutes, both nodes `Ready` in two AZs, all four add-ons `ACTIVE` and Metrics Server serving metrics; `terraform destroy` then removed everything in 7 minutes. That run showed that EKS leaves its control plane log group behind, so Terraform now creates and owns it (74 resources).
+
+The security layers added later (plan/apply role split, Trivy, pod hardening, NetworkPolicy, PSA) were verified in the three ways below.
 
 ### End-to-end test on Kubernetes
 
@@ -227,7 +229,7 @@ A complete checkout also confirms that every legitimate path in the NetworkPolic
 
 | Target | Passed | Failed | Notes |
 |---|---|---|---|
-| Terraform | 127 | 12 | All 12 reviewed and baselined: open NACLs, EKS public endpoint, secrets not encrypted with KMS, VPC flow logs off, default security group |
+| Terraform | 159 | 13 | All 13 reviewed and baselined: open NACLs, EKS public endpoint, no customer managed KMS key for EKS secrets or the control plane log group (AWS encrypts both by default), VPC flow logs off, default security group |
 | Kubernetes manifests (rendered from Helm with the `dev-eks` values) | 999 | 12 | **128** before hardening. Remaining: images not pinned by digest (11), Redis `pullPolicy` (1) |
 | GitHub Actions | 371 | 5 | The `custom_tag` input of `workflow_dispatch`; low risk since only users with write access can run it |
 
@@ -246,7 +248,7 @@ These vulnerabilities sit in the base images and dependencies of the original so
 ### Terraform
 
 - `terraform fmt -check -recursive` and `terraform validate` both pass.
-- A read-only `terraform plan` against a real AWS account with empty state: **73 resources to add, no errors, no warnings**.
+- A read-only `terraform plan` against a real AWS account with empty state: **74 resources to add, no errors** (one deprecation warning for `dynamodb_table` in the S3 backend, see the Roadmap).
 - The trust policies accept exactly these `sub` claims (computed with `terraform console`):
 
   ```text

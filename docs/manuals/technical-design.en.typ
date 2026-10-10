@@ -9,7 +9,7 @@
   title: "Technical Design Document",
   subtitle: "Platform, delivery pipeline and security design",
   doc-id: "OBE-TDD-001",
-  version: "1.0",
+  version: "1.1",
   date: facts.doc-date,
   status: "Approved for the dev environment",
   owner: "khaipd18 (DevOps / Cloud)",
@@ -18,7 +18,8 @@
   repository: facts.repo-url,
   lang: "en",
   revisions: (
-    ("1.0", facts.doc-date, "First issue: covers infrastructure, Kubernetes platform, CI/CD, security and the decisions behind them.", "khaipd18"),
+    ("1.0", "2026-10-09", "First issue: covers infrastructure, Kubernetes platform, CI/CD, security and the decisions behind them.", "khaipd18"),
+    ("1.1", facts.doc-date, "First run on the new account: state bucket renamed, control plane log group managed by Terraform (74 resources), apply and destroy verified.", "khaipd18"),
   ),
   related: (
     [OBE-RUN-001 Operations Runbook (`docs/manuals/operations-runbook.en.pdf`)],
@@ -46,7 +47,7 @@ Out of scope:
 
 == Current state
 
-The platform ran on Amazon EKS in May 2026 (Terraform built the infrastructure, CI pushed images to ECR over OIDC, Argo CD synced the services). The AWS environment was then torn down to avoid cost and the original account is no longer used. The security and resilience layers added afterwards were verified on a local kind cluster and with a read-only `terraform plan` (73 resources to add, no errors). @verification gives the details.
+The platform ran on Amazon EKS in May 2026 (Terraform built the infrastructure, CI pushed images to ECR over OIDC, Argo CD synced the services). The AWS environment was then torn down to avoid cost and the original account is no longer used. The security and resilience layers added afterwards were verified on a local kind cluster and with a read-only `terraform plan`. On 2026-10-10 the current code was applied to a new account and destroyed again, both without errors. @verification gives the details.
 
 == Conventions
 
@@ -199,7 +200,7 @@ GitHub Actions authenticates with short-lived tokens from the GitHub OIDC provid
   columns: (24%, 1fr),
   [Module], [Creates],
   [`vpc`], [VPC, 2 public + 2 private subnets, Internet Gateway, NAT Gateway, route tables, NACLs (child modules `subnet`, `igw`, `nat_gw`, `route-table`)],
-  [`eks`], [Cluster, managed node group, 4 add-ons, OIDC provider and IRSA role for the VPC CNI],
+  [`eks`], [Cluster, control plane log group (365-day retention), managed node group, 4 add-ons, OIDC provider and IRSA role for the VPC CNI],
   [`ecr`], [10 repositories, lifecycle policies, registry scanning configuration],
   [`vpc-endpoints`], [Interface endpoints `ecr.api`, `ecr.dkr`, `sts`; S3 gateway endpoint; `ecr-endpoint-sg`],
   [`github-oidc-role`], [IAM role with a trust policy built from a list of repositories and allowed `sub` values],
@@ -250,7 +251,7 @@ Each release gets an *ingress* NetworkPolicy that admits only the callers listed
 
 == Observability
 
-`kube-prometheus-stack` 84.4.0 (Prometheus, Grafana, Alertmanager, node exporter, kube-state-metrics) is deployed by Argo CD into `monitoring` with `ServerSideApply=true` because its CRDs exceed the annotation size limit of client-side apply. EKS control plane logs go to CloudWatch Logs. There are no custom alert rules, dashboards per service, central log store or tracing yet.
+`kube-prometheus-stack` 84.4.0 (Prometheus, Grafana, Alertmanager, node exporter, kube-state-metrics) is deployed by Argo CD into `monitoring` with `ServerSideApply=true` because its CRDs exceed the annotation size limit of client-side apply. EKS control plane logs go to CloudWatch Logs, in a log group that Terraform creates with a 365-day retention so that `terraform destroy` also removes it. There are no custom alert rules, dashboards per service, central log store or tracing yet.
 
 = Delivery pipeline design
 
@@ -324,7 +325,7 @@ Plan and Apply are skipped while `AWS_ACCOUNT_ID` is unset. The very first apply
 
 == Accepted exceptions <exceptions>
 
-Terraform findings reviewed and kept in `terraform/.checkov.baseline` (12 in total):
+Terraform findings reviewed and kept in `terraform/.checkov.baseline` (13 in total):
 
 #table(
   columns: (auto, 1fr, 1fr),
@@ -334,6 +335,7 @@ Terraform findings reviewed and kept in `terraform/.checkov.baseline` (12 in tot
   [`CKV_AWS_229`–`232`], [NACLs allow ports 20, 21, 22, 3389 (×2 NACLs)], [Filtering is done by security groups and NetworkPolicy],
   [`CKV2_AWS_11`], [VPC flow logs disabled], [Cost; enable for production],
   [`CKV2_AWS_12`], [Default security group not restricted], [Unused by any resource; restrict for production],
+  [`CKV_AWS_158`], [Control plane log group not encrypted with a customer managed KMS key], [CloudWatch Logs encrypts every log group at rest by default #link(facts.src.logs-encryption)[[AWS]]; add a KMS key if key control is required],
 )
 
 Checks skipped globally in `.checkov.yaml`: `CKV_AWS_163` (scan on push is set at registry level, which the check does not see), `CKV_AWS_136` (ECR uses AES-256 encryption by default), `CKV2_AWS_1` (false positive with `aws_network_acl_association`).
@@ -371,7 +373,8 @@ Kubernetes manifests rendered from the chart have 12 remaining Checkov findings 
   [Run on Amazon EKS (May 2026)], [Infrastructure built by Terraform, images pushed over OIDC, services synced by Argo CD. Evidence: bot commits `14bc93f`, `eb86a9a`, `46e66d5`.],
   [End-to-end on kind (Kubernetes 1.37)], [11/11 pods ready with the chart's security context; browse, cart, currency change and checkout work; PSA rejects a non-compliant pod; NetworkPolicy blocks 3/3 unauthorised connections.],
   [HPA and PDB on a 3-node kind cluster], [`frontend` scaled 2 → 3 at 82 % CPU; draining the last node that ran `frontend` was blocked by the PDB.],
-  [Terraform], [`fmt` and `validate` pass; read-only plan against an empty state: 73 resources to add, no errors.],
+  [Apply on a new account (2026-10-10)], [73 resources created in 17 minutes; 2 nodes `Ready` in two AZs, 4 add-ons `ACTIVE`, Metrics Server serving metrics; `terraform destroy` removed everything in 7 minutes.],
+  [Terraform], [`fmt` and `validate` pass; plan against an empty state: 74 resources to add, no errors.],
   [Checkov 3.3.22], [Terraform 0 new findings (12 baselined); Kubernetes 999 passed / 12 failed; GitHub Actions 5 failed.],
   [CI without AWS (2026-10-08)], [All 5 language workflows green; AWS steps skipped; Trivy results uploaded for all 10 images.],
 )

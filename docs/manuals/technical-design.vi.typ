@@ -12,7 +12,7 @@
   title: "Tài liệu thiết kế kỹ thuật",
   subtitle: "Thiết kế nền tảng, pipeline triển khai và bảo mật",
   doc-id: "OBE-TDD-001-VI",
-  version: "1.0",
+  version: "1.1",
   date: facts.doc-date,
   status: "Đã duyệt cho môi trường dev",
   owner: "khaipd18 (DevOps / Cloud)",
@@ -21,7 +21,8 @@
   repository: facts.repo-url,
   lang: "vi",
   revisions: (
-    ("1.0", facts.doc-date, "Phát hành lần đầu: hạ tầng, nền tảng Kubernetes, CI/CD, bảo mật và các quyết định thiết kế.", "khaipd18"),
+    ("1.0", "2026-10-09", "Phát hành lần đầu: hạ tầng, nền tảng Kubernetes, CI/CD, bảo mật và các quyết định thiết kế.", "khaipd18"),
+    ("1.1", facts.doc-date, "Chạy thật trên tài khoản mới: đổi tên bucket state, Terraform quản lý log group của control plane (74 resource), đã kiểm chứng apply và destroy.", "khaipd18"),
   ),
   related: (
     [OBE-RUN-001-VI Sổ tay vận hành (`docs/manuals/operations-runbook.vi.pdf`)],
@@ -50,7 +51,7 @@ Ngoài phạm vi:
 
 == Hiện trạng
 
-Nền tảng đã chạy trên Amazon EKS vào tháng 5/2026 (Terraform dựng hạ tầng, CI đẩy image lên ECR qua OIDC, Argo CD sync các service). Sau đó môi trường AWS được gỡ để tránh chi phí và tài khoản ban đầu không còn được dùng. Các lớp bảo mật và độ sẵn sàng thêm vào sau này được kiểm chứng trên cluster kind ở máy local và bằng `terraform plan` chỉ đọc (73 resource sẽ được tạo, không lỗi). @verification trình bày chi tiết.
+Nền tảng đã chạy trên Amazon EKS vào tháng 5/2026 (Terraform dựng hạ tầng, CI đẩy image lên ECR qua OIDC, Argo CD sync các service). Sau đó môi trường AWS được gỡ để tránh chi phí và tài khoản ban đầu không còn được dùng. Các lớp bảo mật và độ sẵn sàng thêm vào sau này được kiểm chứng trên cluster kind ở máy local và bằng `terraform plan` chỉ đọc. Ngày 10/10/2026, code hiện tại đã được apply lên một tài khoản mới rồi destroy, cả hai đều không lỗi. @verification trình bày chi tiết.
 
 == Quy ước
 
@@ -203,7 +204,7 @@ GitHub Actions xác thực bằng token ngắn hạn do GitHub OIDC provider `to
   columns: (24%, 1fr),
   [Module], [Tạo ra],
   [`vpc`], [VPC, 2 public + 2 private subnet, Internet Gateway, NAT Gateway, route table, NACL (module con `subnet`, `igw`, `nat_gw`, `route-table`)],
-  [`eks`], [Cluster, managed node group, 4 add-on, OIDC provider và IRSA role cho VPC CNI],
+  [`eks`], [Cluster, log group của control plane (lưu 365 ngày), managed node group, 4 add-on, OIDC provider và IRSA role cho VPC CNI],
   [`ecr`], [10 repository, lifecycle policy, cấu hình scanning cấp registry],
   [`vpc-endpoints`], [Interface endpoint `ecr.api`, `ecr.dkr`, `sts`; S3 gateway endpoint; `ecr-endpoint-sg`],
   [`github-oidc-role`], [IAM role có trust policy dựng từ danh sách repository và các giá trị `sub` được phép],
@@ -254,7 +255,7 @@ Mỗi release có một NetworkPolicy *ingress* chỉ cho phép các caller li�
 
 == Observability
 
-`kube-prometheus-stack` 84.4.0 (Prometheus, Grafana, Alertmanager, node exporter, kube-state-metrics) được Argo CD deploy vào `monitoring` với `ServerSideApply=true` vì CRD của nó vượt giới hạn kích thước annotation của client-side apply. Control plane log của EKS đẩy về CloudWatch Logs. Hiện chưa có alert rule riêng, dashboard cho từng service, kho log tập trung hay tracing.
+`kube-prometheus-stack` 84.4.0 (Prometheus, Grafana, Alertmanager, node exporter, kube-state-metrics) được Argo CD deploy vào `monitoring` với `ServerSideApply=true` vì CRD của nó vượt giới hạn kích thước annotation của client-side apply. Control plane log của EKS đẩy về CloudWatch Logs, vào một log group do Terraform tạo với thời hạn lưu 365 ngày, để `terraform destroy` xóa luôn log group này. Hiện chưa có alert rule riêng, dashboard cho từng service, kho log tập trung hay tracing.
 
 = Thiết kế pipeline triển khai
 
@@ -328,7 +329,7 @@ Plan và Apply bị bỏ qua khi `AWS_ACCOUNT_ID` chưa được đặt. Lần a
 
 == Ngoại lệ đã chấp nhận <exceptions>
 
-Các finding Terraform đã review và giữ trong `terraform/.checkov.baseline` (tổng 12):
+Các finding Terraform đã review và giữ trong `terraform/.checkov.baseline` (tổng 13):
 
 #table(
   columns: (auto, 1fr, 1fr),
@@ -338,6 +339,7 @@ Các finding Terraform đã review và giữ trong `terraform/.checkov.baseline`
   [`CKV_AWS_229`–`232`], [NACL cho phép port 20, 21, 22, 3389 (×2 NACL)], [Việc lọc do security group và NetworkPolicy đảm nhận],
   [`CKV2_AWS_11`], [Tắt VPC flow log], [Chi phí; bật khi lên production],
   [`CKV2_AWS_12`], [Default security group chưa bị giới hạn], [Không resource nào dùng; giới hạn khi lên production],
+  [`CKV_AWS_158`], [Log group của control plane chưa dùng KMS key tự quản lý], [CloudWatch Logs mặc định đã mã hóa mọi log group #link(facts.src.logs-encryption)[[AWS]]; thêm KMS key nếu cần tự kiểm soát key],
 )
 
 Các check bị bỏ qua toàn cục trong `.checkov.yaml`: `CKV_AWS_163` (scan on push đặt ở cấp registry, check này không nhìn thấy), `CKV_AWS_136` (ECR mặc định mã hóa AES-256), `CKV2_AWS_1` (báo nhầm khi dùng `aws_network_acl_association`).
@@ -375,7 +377,8 @@ Manifest Kubernetes render từ chart còn 12 finding Checkov (từ 128 trước
   [Chạy trên Amazon EKS (05/2026)], [Terraform dựng hạ tầng, image push qua OIDC, Argo CD sync các service. Bằng chứng: commit của bot `14bc93f`, `eb86a9a`, `46e66d5`.],
   [End-to-end trên kind (Kubernetes 1.37)], [11/11 pod ready với security context của chart; xem sản phẩm, giỏ hàng, đổi tiền tệ và checkout đều chạy; PSA từ chối pod không đạt chuẩn; NetworkPolicy chặn 3/3 kết nối trái phép.],
   [HPA và PDB trên cluster kind 3 node], [`frontend` scale 2 → 3 ở 82 % CPU; drain node cuối cùng còn chạy `frontend` bị PDB chặn.],
-  [Terraform], [`fmt` và `validate` pass; plan chỉ đọc trên state rỗng: 73 resource sẽ được tạo, không lỗi.],
+  [Apply trên tài khoản mới (10/10/2026)], [Tạo 73 resource trong 17 phút; 2 node `Ready` ở hai AZ, 4 add-on `ACTIVE`, Metrics Server trả về số liệu; `terraform destroy` xóa sạch trong 7 phút.],
+  [Terraform], [`fmt` và `validate` pass; plan trên state rỗng: 74 resource sẽ được tạo, không lỗi.],
   [Checkov 3.3.22], [Terraform 0 finding mới (12 trong baseline); Kubernetes 999 pass / 12 fail; GitHub Actions 5 fail.],
   [CI không có AWS (08/10/2026)], [Cả 5 workflow theo ngôn ngữ xanh; bước AWS được bỏ qua; kết quả Trivy được tải lên cho cả 10 image.],
 )
