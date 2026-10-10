@@ -12,7 +12,7 @@ serviceAccount:
   name: "frontend"
 image:
   repository: 445817183958.dkr.ecr.ap-southeast-1.amazonaws.com/frontend
-  tag: "18da8f445f90cf00ebb100c9e9983639a4f5eaae"
+  tag: "writeback-test"
   pullPolicy: Always
 service:
   enabled: true
