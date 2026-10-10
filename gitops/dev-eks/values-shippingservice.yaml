@@ -1,29 +1,23 @@
-deployment: 
+deployment:
   enabled: true
-
 replicaCount: 1
-
 serviceAccount:
   create: true
   name: "shippingservice"
-
 image:
-  repository: 797226340543.dkr.ecr.ap-southeast-1.amazonaws.com/shippingservice
-  tag: "local"
+  repository: 445817183958.dkr.ecr.ap-southeast-1.amazonaws.com/shippingservice
+  tag: "18da8f445f90cf00ebb100c9e9983639a4f5eaae"
   pullPolicy: Always
-
 service:
   enabled: true
   type: ClusterIP
   port: 50051
   targetPort: 50051
-
 env:
   PORT: "50051"
   ENABLE_TRACING: ""
   DISABLE_PROFILER: "1"
   DISABLE_STATS: ""
-
 resources:
   limits:
     cpu: 200m
@@ -31,7 +25,6 @@ resources:
   requests:
     cpu: 100m
     memory: 64Mi
-
 probes:
   readiness:
     grpc:
