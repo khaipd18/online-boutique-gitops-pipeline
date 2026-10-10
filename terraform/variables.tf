@@ -58,7 +58,7 @@ variable "allow_pull_principals" {
 variable "tf_state_bucket" {
   description = "Name of the S3 bucket holding the Terraform state"
   type        = string
-  default     = "khaipd18-devops-project-tf-state"
+  default     = "khaipd18-obe-tf-state-445817183958"
 }
 
 variable "tf_state_lock_table" {
