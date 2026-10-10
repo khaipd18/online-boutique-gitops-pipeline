@@ -1,23 +1,18 @@
-deployment: 
+deployment:
   enabled: true
-
 replicaCount: 1
-
 serviceAccount:
   create: true
   name: "checkoutservice"
-
 image:
-  repository: 797226340543.dkr.ecr.ap-southeast-1.amazonaws.com/checkoutservice
-  tag: "local"
+  repository: 445817183958.dkr.ecr.ap-southeast-1.amazonaws.com/checkoutservice
+  tag: "18da8f445f90cf00ebb100c9e9983639a4f5eaae"
   pullPolicy: Always
-
 service:
   enabled: true
   type: ClusterIP
   port: 5050
   targetPort: 5050
-
 env:
   PORT: "5050"
   SHIPPING_SERVICE_ADDR: "shippingservice-dev:50051"
@@ -26,7 +21,6 @@ env:
   CURRENCY_SERVICE_ADDR: "currencyservice-dev:7000"
   EMAIL_SERVICE_ADDR: "emailservice-dev:8080"
   PAYMENT_SERVICE_ADDR: "paymentservice-dev:50051"
-
 resources:
   limits:
     cpu: 200m
@@ -34,7 +28,6 @@ resources:
   requests:
     cpu: 100m
     memory: 64Mi
-    
 probes:
   readiness:
     grpc:
