@@ -46,7 +46,7 @@ The design follows what a production setup would need: least privilege for the p
 | Document | Content | PDF |
 |---|---|---|
 | Technical Design Document (OBE-TDD-001) | Infrastructure, Kubernetes platform, CI/CD and security design, design decisions, risks | [English](docs/manuals/technical-design.en.pdf) · [Tiếng Việt](docs/manuals/technical-design.vi.pdf) |
-| Operations Runbook (OBE-RUN-001) | Access, bootstrap and teardown, routine procedures, monitoring, 14 incident playbooks, disaster recovery | [English](docs/manuals/operations-runbook.en.pdf) · [Tiếng Việt](docs/manuals/operations-runbook.vi.pdf) |
+| Operations Runbook (OBE-RUN-001) | The main tasks step by step (start, check, release, roll back, change, stop), one troubleshooting table, appendices for upgrades, security findings, cost and recovery | [English](docs/manuals/operations-runbook.en.pdf) · [Tiếng Việt](docs/manuals/operations-runbook.vi.pdf) |
 
 The PDFs are built from Typst sources in [`docs/manuals/`](docs/manuals) with `docs/manuals/build.sh` (Typst 0.15 or later; fonts are included).
 

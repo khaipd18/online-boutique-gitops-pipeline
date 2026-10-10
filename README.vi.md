@@ -46,7 +46,7 @@ Thiết kế bám theo yêu cầu của một môi trường production: quyền
 | Tài liệu | Nội dung | PDF |
 |---|---|---|
 | Tài liệu thiết kế kỹ thuật (OBE-TDD-001) | Thiết kế hạ tầng, nền tảng Kubernetes, CI/CD và bảo mật, các quyết định thiết kế, rủi ro | [Tiếng Việt](docs/manuals/technical-design.vi.pdf) · [English](docs/manuals/technical-design.en.pdf) |
-| Sổ tay vận hành (OBE-RUN-001) | Truy cập, dựng và gỡ môi trường, quy trình thường ngày, monitoring, 14 kịch bản xử lý sự cố, khôi phục sau thảm họa | [Tiếng Việt](docs/manuals/operations-runbook.vi.pdf) · [English](docs/manuals/operations-runbook.en.pdf) |
+| Sổ tay vận hành (OBE-RUN-001) | Các việc chính theo từng bước (dựng, kiểm tra, ra bản mới, rollback, đổi cấu hình, tắt), một bảng xử lý sự cố, phụ lục về nâng phiên bản, lỗ hổng, chi phí và khôi phục | [Tiếng Việt](docs/manuals/operations-runbook.vi.pdf) · [English](docs/manuals/operations-runbook.en.pdf) |
 
 Các file PDF được build từ mã nguồn Typst trong [`docs/manuals/`](docs/manuals) bằng `docs/manuals/build.sh` (Typst 0.15 trở lên; font đã kèm sẵn).
 
