@@ -1,29 +1,24 @@
-deployment: 
+deployment:
   enabled: true
-
 replicaCount: 1
-
 # Entry point for all user traffic: keep 2+ replicas spread across AZs, scale out on CPU
 autoscaling:
   enabled: true
   minReplicas: 2
   maxReplicas: 4
   targetCPUUtilizationPercentage: 70
-
 serviceAccount:
   create: true
   name: "frontend"
-
 image:
-  repository: 797226340543.dkr.ecr.ap-southeast-1.amazonaws.com/frontend
-  tag: "local"
+  repository: 445817183958.dkr.ecr.ap-southeast-1.amazonaws.com/frontend
+  tag: "18da8f445f90cf00ebb100c9e9983639a4f5eaae"
   pullPolicy: Always
 service:
   enabled: true
   type: ClusterIP
   port: 80
   targetPort: 8080
-
 env:
   PORT: "8080"
   ENABLE_PROFILER: "0"
@@ -38,7 +33,6 @@ env:
   ENV_PLATFORM: "aws"
   GOMAXPROCS: "1"
   GOMEMLIMIT: "230MiB"
-
 resources:
   requests:
     cpu: 100m
@@ -46,7 +40,6 @@ resources:
   limits:
     cpu: 200m
     memory: 256Mi
-    
 probes:
   readiness:
     httpGet:
