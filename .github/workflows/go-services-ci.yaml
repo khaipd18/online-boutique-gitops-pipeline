@@ -50,6 +50,7 @@ jobs:
     permissions:
       id-token: write 
       contents: write
+      pull-requests: write # GitOps update pull request
       security-events: write # upload Trivy findings to code scanning
     
     strategy:
@@ -142,32 +143,11 @@ jobs:
         if: steps.build.outputs.exists == 'false' && env.AWS_ACCOUNT_ID != ''
         run: docker push "$IMAGE"
 
-      - name: Update GitOps and Push Back
+      # main requires pull requests, so the image tag is written through a pull request the bot merges itself
+      - name: Update GitOps through a pull request
         if: env.AWS_ACCOUNT_ID != ''
-        working-directory: . 
-        run: |
-          # Update image configs
-          yq -i '.image.repository = "${{ env.FULL_REPO }}"' gitops/dev-eks/values-${{ matrix.service }}.yaml
-          yq -i '.image.tag = "${{ env.NEW_TAG }}"' gitops/dev-eks/values-${{ matrix.service }}.yaml
-
-          # Configure git bot
-          git config --global user.name "GitHub Actions Bot"
-          git config --global user.email "actions@github.com"
-
-          # Commit changes
-          git add gitops/dev-eks/values-${{ matrix.service }}.yaml
-          git commit -m "chore(gitops): update ${{ matrix.service }} to ${{ env.NEW_TAG }} [skip ci]"
-
-          # Retry loop for concurrent pushes
-          for i in {1..5}; do
-            git pull --rebase --autostash origin main
-            if git push origin main; then
-              echo "Successfully pushed ${{ matrix.service }} updates."
-              exit 0
-            fi
-            echo "Conflict detected (attempt $i/5). Retrying..."
-            sleep $((RANDOM % 5 + 1))
-          done
-          
-          echo "Failed to push after 5 attempts."
-          exit 1
+        uses: ./.github/actions/gitops-update
+        with:
+          service: ${{ matrix.service }}
+          repository: ${{ env.FULL_REPO }}
+          tag: ${{ env.NEW_TAG }}

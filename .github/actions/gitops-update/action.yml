@@ -1,0 +1,70 @@
+name: 'GitOps image update'
+description: 'Write a new image repository and tag into gitops/dev-eks/values-<service>.yaml through a pull request and merge it'
+
+# main is protected by a ruleset that requires pull requests, and a personal repository cannot add the
+# GitHub Actions app to the bypass list, so the bot opens a pull request and merges it instead of pushing.
+# Needs: actions/checkout with fetch-depth 0, job permissions contents: write and pull-requests: write,
+# and "Allow GitHub Actions to create and approve pull requests" enabled in the repository settings.
+
+inputs:
+  service:
+    description: 'Service name, e.g. frontend'
+    required: true
+  repository:
+    description: 'Image repository, e.g. <account>.dkr.ecr.<region>.amazonaws.com/frontend'
+    required: true
+  tag:
+    description: 'Image tag (git SHA)'
+    required: true
+  token:
+    description: 'Token used to push the branch and create and merge the pull request'
+    required: false
+    default: ${{ github.token }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Open and merge the update pull request
+      shell: bash
+      working-directory: ${{ github.workspace }}
+      env:
+        GH_TOKEN: ${{ inputs.token }}
+        SERVICE: ${{ inputs.service }}
+        REPOSITORY: ${{ inputs.repository }}
+        TAG: ${{ inputs.tag }}
+      run: |
+        FILE="gitops/dev-eks/values-$SERVICE.yaml"
+        BRANCH="gitops/$SERVICE-$TAG"
+        TITLE="chore(gitops): update $SERVICE to $TAG [skip ci]"
+        # Work in a separate worktree so the job's own checkout stays as it is
+        WORKTREE="$RUNNER_TEMP/gitops-update-$SERVICE"
+        git config --global user.name "github-actions[bot]"
+        git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+        # Several services finish at the same time; each one edits its own file, so a retry only has to
+        # start again from the latest main
+        for i in 1 2 3 4 5; do
+          git fetch --quiet origin main
+          git worktree remove --force "$WORKTREE" 2>/dev/null || true
+          git worktree add --quiet -B "$BRANCH" "$WORKTREE" origin/main
+          yq -i ".image.repository = \"$REPOSITORY\" | .image.tag = \"$TAG\"" "$WORKTREE/$FILE"
+          if git -C "$WORKTREE" diff --quiet -- "$FILE"; then
+            echo "$FILE already uses $REPOSITORY:$TAG, nothing to do"
+            exit 0
+          fi
+          git -C "$WORKTREE" commit --quiet -m "$TITLE" -- "$FILE"
+          git -C "$WORKTREE" push --quiet --force origin "HEAD:refs/heads/$BRANCH"
+
+          gh pr view "$BRANCH" --json url >/dev/null 2>&1 || \
+            gh pr create --base main --head "$BRANCH" --title "$TITLE" \
+              --body "Automated image update by ${{ github.workflow }} run ${{ github.run_id }}."
+          if gh pr merge "$BRANCH" --squash --subject "$TITLE"; then
+            git push --quiet origin --delete "$BRANCH" || true
+            echo "Merged $SERVICE update to $TAG"
+            exit 0
+          fi
+          echo "Merge failed (attempt $i/5), retrying"
+          sleep $((RANDOM % 5 + 2))
+        done
+        echo "::error::Could not merge the GitOps update for $SERVICE after 5 attempts"
+        exit 1
