@@ -5,8 +5,8 @@ serviceAccount:
   create: true
   name: "recommendationservice"
 image:
-  repository: 797226340543.dkr.ecr.ap-southeast-1.amazonaws.com/recommendationservice
-  tag: "0377f458dd98b864c93c6fe9594e8814d8ff34b8"
+  repository: 445817183958.dkr.ecr.ap-southeast-1.amazonaws.com/recommendationservice
+  tag: "18da8f445f90cf00ebb100c9e9983639a4f5eaae"
   pullPolicy: Always
 service:
   enabled: true
