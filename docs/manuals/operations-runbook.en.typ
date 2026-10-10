@@ -1,4 +1,4 @@
-#import "lib/template.typ": manual, callout, palette, playbook as playbook-table
+#import "lib/template.typ": manual, callout, palette, shot, playbook as playbook-table
 #import "lib/facts.typ" as facts
 
 #let note = callout.with("note", lang: "en")
@@ -12,7 +12,7 @@
   title: "Operations Runbook",
   subtitle: "Deployment, day-to-day operations and incident response",
   doc-id: "OBE-RUN-001",
-  version: "1.1",
+  version: "1.2",
   date: facts.doc-date,
   status: "Approved for the dev environment",
   owner: "khaipd18 (DevOps / Cloud)",
@@ -22,7 +22,8 @@
   lang: "en",
   revisions: (
     ("1.0", "2026-10-09", "First issue: access, bootstrap, routine procedures, monitoring, incident playbooks, teardown.", "khaipd18"),
-    ("1.1", facts.doc-date, "First run on the new account: state bucket renamed, control plane log group managed by Terraform (74 resources), apply and destroy verified.", "khaipd18"),
+    ("1.1", "2026-10-10", "First run on the new account: state bucket renamed, control plane log group managed by Terraform (74 resources), apply and destroy verified.", "khaipd18"),
+    ("1.2", facts.doc-date, "Full deployment on EKS: screenshots, Argo CD installed with server-side apply, three nodes by default, console access through access entries, new playbook IR-15.", "khaipd18"),
   ),
   related: (
     [OBE-TDD-001 Technical Design Document (`docs/manuals/technical-design.en.pdf`)],
@@ -93,7 +94,7 @@ The platform has a single owner (`khaipd18`). Record every SEV1/SEV2 incident as
   kubectl get nodes
   ```
 
-#note[The cluster sets no `access_config`, so the API default applies: only the IAM principal that created the cluster has admin access at first #link(facts.src.access-config)[[AWS]]. Check the mode with `aws eks describe-cluster --name khaipd18-eks-cluster --query cluster.accessConfig`. To give another engineer access, switch the cluster to `API_AND_CONFIG_MAP` and create an access entry with an access policy #link(facts.src.access-entries)[[AWS]]; do it in Terraform so it is not lost on the next apply.]
+#note[The cluster uses authentication mode `API_AND_CONFIG_MAP`. The IAM principal that created the cluster is admin. The role people use in the AWS console (`managed/AccountFullAccessRole` in accounts created through the AWS project experience) gets read-only access through an access entry with `AmazonEKSAdminViewPolicy`, so the console can list pods and nodes #link(facts.src.console-view)[[AWS]]. To give another role read-only access, add its ARN to the Terraform variable `eks_console_viewer_role_arns`; for more than read-only, create an access entry with a stronger access policy, also in Terraform #link(facts.src.access-entries)[[AWS]].]
 
 == Open the consoles
 
@@ -153,7 +154,8 @@ Change the Argo CD admin password after the first login and delete `argocd-initi
   ```bash
   aws eks update-kubeconfig --region ap-southeast-1 --name khaipd18-eks-cluster
   kubectl create namespace argocd
-  kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+  # --server-side: the Argo CD 3.x CRDs are larger than the annotation limit of client-side apply
+  kubectl apply -n argocd --server-side -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
   kubectl apply -f gitops/argocd/namespaces.yaml
   kubectl apply -f gitops/argocd/applicationset.yaml
   kubectl apply -f gitops/argocd/monitoring.yaml --server-side
@@ -178,6 +180,11 @@ kubectl -n dev-eks get pods                   # all Running, frontend has 2 repl
 kubectl -n dev-eks get hpa,pdb                # frontend HPA reads a CPU value
 ```
 Open the shop URL and place an order; the confirmation page must appear.
+
+#shot("argocd-applications.png", [Argo CD after the bootstrap: all 14 applications Synced and Healthy])
+#shot("console-eks-overview.png", [EKS console, cluster overview: Active, Kubernetes 1.35, no health issues])
+#shot("console-eks-nodes.png", [EKS console, Compute: three `t3.medium` nodes Ready in two AZs])
+#shot("shop-order-complete.png", [The shop after a test order: the whole checkout path works], width: 80%)
 
 == RB-02 Tear down the environment
 
@@ -219,6 +226,9 @@ kubectl -n dev-eks rollout status deploy/<service>-dev
 kubectl -n dev-eks get deploy <service>-dev -o jsonpath='{..image}'; echo
 ```
 
+#shot("github-ci-run.png", [A CI run: one build-and-push job per changed service])
+#shot("console-ecr-repositories.png", [ECR: the 10 repositories, immutable tags, AES-256 encryption])
+
 == RB-05 Roll back a service
 
 Every image tag is a commit SHA and tags are immutable, so a rollback means pointing the values file back at the previous tag.
@@ -248,6 +258,8 @@ Environment variables, resources, probes, replicas, autoscaling and NetworkPolic
 
 #tip[When a service starts calling another one, add the caller's release name to the callee's `networkPolicy.allowFrom`, otherwise the call times out (see IR-09).]
 
+#shot("argocd-frontend-tree.png", [Argo CD resource tree of `frontend-dev`: Service, ServiceAccount, Deployment with two pods, HPA, NetworkPolicy and PodDisruptionBudget])
+
 == RB-07 Add a new service
 
 + Add `gitops/dev-eks/values-<name>.yaml` (copy a similar service; keep the chart's security defaults).
@@ -274,7 +286,9 @@ Environment variables, resources, probes, replicas, autoscaling and NetworkPolic
 
 - *`frontend`:* the HPA keeps 2–4 replicas at 70 % CPU. Change the range in `values-frontend.yaml` (`autoscaling.minReplicas` / `maxReplicas`).
 - *Other services:* set `replicaCount` or turn on `autoscaling.enabled` in their values file. A PodDisruptionBudget is added automatically from 2 replicas. Keep `redis-cart` at 1 (data in `emptyDir`).
-- *Nodes:* change `eks_node_group_scaling_config` (min/desired/max, now 1/2/3) through RB-08. There is no cluster autoscaler: `desired_size` is the number of nodes.
+- *Nodes:* change `eks_node_group_scaling_config` (min/desired/max, now 1/3/4) through RB-08. There is no cluster autoscaler: `desired_size` is the number of nodes.
+
+#shot("console-eks-nodegroup.png", [EKS console: the managed node group with its desired size])
 
 == RB-10 Upgrade Kubernetes and add-ons
 
@@ -296,6 +310,9 @@ Kubernetes 1.35 leaves standard support on 27 March 2027 #link(facts.src.version
 
 *Verify:* `kubectl get nodes` shows the new version on every node; all Argo CD applications are Healthy; the shop checkout works.
 
+#shot("console-eks-upgrade-insights.png", [EKS upgrade insights: checks EKS runs before a version upgrade])
+#shot("console-eks-addons.png", [EKS add-ons with their versions; the console flags add-ons that have a newer version])
+
 == RB-11 Accept or fix a Checkov finding
 
 + Prefer fixing the Terraform. If the finding is acceptable, write down why (a comment next to the resource).
@@ -310,13 +327,15 @@ Kubernetes 1.35 leaves standard support on 27 March 2027 #link(facts.src.version
 + Findings come from base images and dependencies in `src/`, which this repository does not change. Upgrading them is a code change for the application owners; this repository then switches the gate to blocking by setting `blocking: 'true'` in the Trivy step.
 + The SBOM (CycloneDX) for each image is kept as a run artifact for 30 days (`sbom-<service>`).
 
+#shot("github-code-scanning.png", [GitHub code scanning: Trivy findings per image])
+
 == RB-13 Control cost
 
 #table(
   columns: (34%, 1fr),
   [Billable item], [Notes],
   [EKS control plane], [Per hour while the cluster exists],
-  [EC2 nodes], [2 × `t3.medium` on-demand by default],
+  [EC2 nodes], [3 × `t3.medium` on-demand by default],
   [NAT Gateway], [Per hour and per GB processed #link(facts.src.nat-pricing)[[AWS]]],
   [Interface endpoints], [3 endpoints × 2 AZs, per hour and per GB],
   [Classic Load Balancer], [Per hour and per GB],
@@ -338,16 +357,27 @@ kubectl get nodes                                  # Ready
 gh run list --limit 10                             # recent CI results
 ```
 
+#shot("terminal-daily.png", [Daily checks on a healthy cluster])
+
 == What to watch in Grafana
 
 The kube-prometheus-stack ships dashboards for the cluster, nodes, namespaces and workloads. Watch:
 
 - Pod restarts and `OOMKilled` containers in #raw(facts.namespace) (dashboard *Kubernetes / Compute Resources / Namespace (Pods)*).
 - CPU and memory per pod against the requests and limits in Appendix A.
-- Node CPU and memory: with 2 `t3.medium` nodes the cluster has little headroom.
+- Node CPU and memory: the full stack runs about 37 pods on 3 `t3.medium` nodes, and each node accepts a limited number of pods #link(facts.src.max-pods)[[AWS]].
 - `frontend` replica count (HPA activity).
 
 There are no alert rules for the application yet; Alertmanager only has the default rules. SLO-based alerts are on the roadmap.
+
+#shot("grafana-namespace-pods.png", [Grafana, dashboard Kubernetes / Compute Resources / Namespace (Pods) for `dev-eks`])
+
+== EKS console
+
+The EKS console shows cluster health, upgrade insights and control plane metrics under *Monitor cluster*. Use it alongside Grafana for the control plane, which Prometheus in the cluster cannot see.
+
+#shot("console-eks-observability.png", [EKS observability dashboard: cluster health, upgrade insights, node health])
+#shot("console-eks-control-plane.png", [EKS control plane monitoring: API request concurrency, pod scheduling rate, etcd size])
 
 == Logs
 
@@ -438,6 +468,8 @@ There are no alert rules for the application yet; Alertmanager only has the defa
   fix: [Add the caller's release name to the target's `allowFrom` (RB-06).],
 )
 
+#shot("terminal-security.png", [Expected behaviour on EKS: PSA rejects a pod without a security context (IR-08); an unrelated pod reaches `frontend` but not `paymentservice` or `redis-cart` (IR-09)])
+
 == IR-10 Shop not reachable from the internet
 
 #playbook(
@@ -451,7 +483,7 @@ There are no alert rules for the application yet; Alertmanager only has the defa
 
 #playbook(
   symptom: [Pods stay `Pending` with `Insufficient cpu`/`memory`, or a node is `NotReady`.],
-  cause: [Requests exceed what 2 `t3.medium` nodes provide (for example after scaling); a node failed.],
+  cause: [Requests or the pod count exceed what the 3 `t3.medium` nodes provide (for example after scaling); a node failed.],
   diagnose: [`kubectl describe pod <pod>` (scheduler message); `kubectl describe node <node>` (allocated resources, conditions); `kubectl top nodes`.],
   fix: [Lower replicas or requests, or raise the node group size (RB-09). A failed node in a managed node group is replaced by EKS; if it is not, cordon and drain it and terminate the instance.],
 )
@@ -481,6 +513,15 @@ There are no alert rules for the application yet; Alertmanager only has the defa
   cause: [`redis-cart` restarted; its data is in an `emptyDir` volume and is lost on restart.],
   diagnose: [`kubectl -n dev-eks get pod -l app=redis-cart-dev` (age, restarts).],
   fix: [Expected behaviour for this demo. A durable store (ElastiCache, or a PersistentVolume) is needed before real use.],
+)
+
+== IR-15 EKS console shows "Data unavailable"
+
+#playbook(
+  symptom: [The EKS console shows *Data unavailable* for Pods, Nodes or IAM access entries, or `nodes is forbidden: User "arn:aws:sts::...:assumed-role/..." cannot list resource "nodes"`.],
+  cause: [The console role has IAM permissions but no Kubernetes permissions in the cluster. With authentication mode `CONFIG_MAP` only the cluster creator has access, and `AmazonEKSViewPolicy` does not include nodes #link(facts.src.access-policies)[[AWS]].],
+  diagnose: [`aws eks describe-cluster --name khaipd18-eks-cluster --query cluster.accessConfig`; `aws eks list-access-entries --cluster-name khaipd18-eks-cluster`; find the console role in CloudTrail (`DescribeCluster` events, `userIdentity.arn`).],
+  fix: [Apply the current Terraform, which sets `API_AND_CONFIG_MAP` and gives the console role `AmazonEKSAdminViewPolicy` #link(facts.src.console-view)[[AWS]]. For another role, add its ARN to `eks_console_viewer_role_arns`.],
 )
 
 = Disaster recovery

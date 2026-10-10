@@ -86,6 +86,10 @@
   inbound: "https://docs.aws.amazon.com/prescriptive-guidance/latest/load-balancer-stickiness/subnets-routing.html",
   envelope: "https://docs.aws.amazon.com/eks/latest/userguide/envelope-encryption.html",
   logs-encryption: "https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/data-protection.html",
+  capabilities: "https://docs.aws.amazon.com/eks/latest/userguide/capabilities.html",
+  console-view: "https://docs.aws.amazon.com/eks/latest/userguide/view-kubernetes-resources.html",
+  access-policies: "https://docs.aws.amazon.com/eks/latest/userguide/access-policy-permissions.html",
+  max-pods: "https://docs.aws.amazon.com/eks/latest/userguide/choosing-instance-type.html",
   nodegroup-update: "https://docs.aws.amazon.com/eks/latest/userguide/update-managed-node-group.html",
 )
 

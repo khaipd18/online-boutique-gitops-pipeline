@@ -1,4 +1,4 @@
-#import "lib/template.typ": manual, callout, palette, playbook as playbook-table
+#import "lib/template.typ": manual, callout, palette, shot, playbook as playbook-table
 #import "lib/facts.typ" as facts
 
 #let note = callout.with("note", lang: "vi")
@@ -14,7 +14,7 @@
   title: "Sổ tay vận hành",
   subtitle: "Triển khai, vận hành hằng ngày và xử lý sự cố",
   doc-id: "OBE-RUN-001-VI",
-  version: "1.1",
+  version: "1.2",
   date: facts.doc-date,
   status: "Đã duyệt cho môi trường dev",
   owner: "khaipd18 (DevOps / Cloud)",
@@ -24,7 +24,8 @@
   lang: "vi",
   revisions: (
     ("1.0", "2026-10-09", "Phát hành lần đầu: truy cập, bootstrap, quy trình thường ngày, monitoring, xử lý sự cố, gỡ môi trường.", "khaipd18"),
-    ("1.1", facts.doc-date, "Chạy thật trên tài khoản mới: đổi tên bucket state, Terraform quản lý log group của control plane (74 resource), đã kiểm chứng apply và destroy.", "khaipd18"),
+    ("1.1", "2026-10-10", "Chạy thật trên tài khoản mới: đổi tên bucket state, Terraform quản lý log group của control plane (74 resource), đã kiểm chứng apply và destroy.", "khaipd18"),
+    ("1.2", facts.doc-date, "Triển khai đầy đủ trên EKS: thêm ảnh chụp màn hình, cài Argo CD bằng server-side apply, mặc định 3 node, quyền xem trên console qua access entry, thêm kịch bản IR-15.", "khaipd18"),
   ),
   related: (
     [OBE-TDD-001-VI Tài liệu thiết kế kỹ thuật (`docs/manuals/technical-design.vi.pdf`)],
@@ -96,7 +97,7 @@ Nền tảng có một người phụ trách duy nhất (`khaipd18`). Mọi sự
   kubectl get nodes
   ```
 
-#note[Cluster không đặt `access_config` nên áp dụng mặc định của API: ban đầu chỉ IAM principal đã tạo cluster có quyền admin #link(facts.src.access-config)[[AWS]]. Kiểm tra chế độ bằng `aws eks describe-cluster --name khaipd18-eks-cluster --query cluster.accessConfig`. Muốn cấp quyền cho kỹ sư khác, chuyển cluster sang `API_AND_CONFIG_MAP` rồi tạo access entry kèm access policy #link(facts.src.access-entries)[[AWS]]; nên làm bằng Terraform để không bị mất ở lần apply sau.]
+#note[Cluster dùng authentication mode `API_AND_CONFIG_MAP`. IAM principal đã tạo cluster có quyền admin. Role dùng trên AWS console (`managed/AccountFullAccessRole` ở các tài khoản tạo theo trải nghiệm project của AWS) có quyền chỉ đọc qua một access entry gắn `AmazonEKSAdminViewPolicy`, nên console xem được pod và node #link(facts.src.console-view)[[AWS]]. Muốn cấp quyền chỉ đọc cho role khác, thêm ARN của nó vào biến Terraform `eks_console_viewer_role_arns`; cần nhiều hơn chỉ đọc thì tạo access entry với access policy mạnh hơn, cũng bằng Terraform #link(facts.src.access-entries)[[AWS]].]
 
 == Mở các giao diện quản trị
 
@@ -156,7 +157,8 @@ kubectl -n dev-eks get svc frontend-external-dev \
   ```bash
   aws eks update-kubeconfig --region ap-southeast-1 --name khaipd18-eks-cluster
   kubectl create namespace argocd
-  kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+  # --server-side: CRD của Argo CD 3.x vượt giới hạn annotation của client-side apply
+  kubectl apply -n argocd --server-side -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
   kubectl apply -f gitops/argocd/namespaces.yaml
   kubectl apply -f gitops/argocd/applicationset.yaml
   kubectl apply -f gitops/argocd/monitoring.yaml --server-side
@@ -181,6 +183,11 @@ kubectl -n dev-eks get pods                   # tất cả Running, frontend có
 kubectl -n dev-eks get hpa,pdb                # HPA của frontend đọc được giá trị CPU
 ```
 Mở địa chỉ shop và đặt thử một đơn; trang xác nhận đơn hàng phải hiện ra.
+
+#shot("argocd-applications.png", [Argo CD sau khi bootstrap: cả 14 Application đều Synced và Healthy])
+#shot("console-eks-overview.png", [EKS console, tổng quan cluster: Active, Kubernetes 1.35, không có vấn đề sức khỏe])
+#shot("console-eks-nodes.png", [EKS console, mục Compute: 3 node `t3.medium` Ready ở hai AZ])
+#shot("shop-order-complete.png", [Shop sau khi đặt thử một đơn: cả luồng checkout hoạt động], width: 80%)
 
 == RB-02 Gỡ môi trường
 
@@ -222,6 +229,9 @@ kubectl -n dev-eks rollout status deploy/<service>-dev
 kubectl -n dev-eks get deploy <service>-dev -o jsonpath='{..image}'; echo
 ```
 
+#shot("github-ci-run.png", [Một run CI: mỗi service thay đổi có một job build-and-push])
+#shot("console-ecr-repositories.png", [ECR: 10 repository, tag immutable, mã hóa AES-256])
+
 == RB-05 Rollback một service
 
 Mỗi tag image là một commit SHA và tag không đổi được, nên rollback nghĩa là cho file values trỏ lại tag trước đó.
@@ -251,6 +261,8 @@ Biến môi trường, resource, probe, số replica, autoscaling và danh sách
 
 #tip[Khi một service bắt đầu gọi sang service khác, thêm tên release của bên gọi vào `networkPolicy.allowFrom` của bên được gọi, nếu không lời gọi sẽ bị timeout (xem IR-09).]
 
+#shot("argocd-frontend-tree.png", [Cây resource của `frontend-dev` trên Argo CD: Service, ServiceAccount, Deployment với hai pod, HPA, NetworkPolicy và PodDisruptionBudget])
+
 == RB-07 Thêm service mới
 
 + Thêm `gitops/dev-eks/values-<name>.yaml` (chép từ một service tương tự; giữ nguyên thiết lập bảo mật mặc định của chart).
@@ -277,7 +289,9 @@ Biến môi trường, resource, probe, số replica, autoscaling và danh sách
 
 - *`frontend`:* HPA giữ 2–4 replica ở mức 70 % CPU. Đổi khoảng này trong `values-frontend.yaml` (`autoscaling.minReplicas` / `maxReplicas`).
 - *Service khác:* đặt `replicaCount` hoặc bật `autoscaling.enabled` trong file values. PodDisruptionBudget tự được thêm từ 2 replica. Giữ `redis-cart` ở 1 (dữ liệu nằm trong `emptyDir`).
-- *Node:* đổi `eks_node_group_scaling_config` (min/desired/max, hiện 1/2/3) theo RB-08. Chưa có cluster autoscaler: `desired_size` chính là số node.
+- *Node:* đổi `eks_node_group_scaling_config` (min/desired/max, hiện 1/3/4) theo RB-08. Chưa có cluster autoscaler: `desired_size` chính là số node.
+
+#shot("console-eks-nodegroup.png", [EKS console: managed node group và desired size])
 
 == RB-10 Nâng phiên bản Kubernetes và add-on
 
@@ -299,6 +313,9 @@ Kubernetes 1.35 hết standard support ngày 27/03/2027 #link(facts.src.versions
 
 *Kiểm tra:* `kubectl get nodes` cho thấy mọi node đã lên phiên bản mới; mọi Application của Argo CD đều Healthy; checkout trên shop vẫn chạy.
 
+#shot("console-eks-upgrade-insights.png", [EKS upgrade insights: các kiểm tra EKS chạy trước khi nâng phiên bản])
+#shot("console-eks-addons.png", [Các add-on EKS và phiên bản; console báo add-on nào đã có bản mới])
+
 == RB-11 Chấp nhận hoặc sửa một finding Checkov
 
 + Ưu tiên sửa Terraform. Nếu finding chấp nhận được, ghi rõ lý do (comment ngay cạnh resource).
@@ -313,13 +330,15 @@ Kubernetes 1.35 hết standard support ngày 27/03/2027 #link(facts.src.versions
 + Finding đến từ base image và dependency trong `src/`, phần repository này không sửa. Nâng cấp chúng là việc thay đổi code của chủ ứng dụng; sau đó repository này chuyển gate sang blocking bằng cách đặt `blocking: 'true'` ở bước Trivy.
 + SBOM (CycloneDX) của từng image được lưu thành artifact của run trong 30 ngày (`sbom-<service>`).
 
+#shot("github-code-scanning.png", [GitHub code scanning: finding của Trivy theo từng image])
+
 == RB-13 Kiểm soát chi phí
 
 #table(
   columns: (34%, 1fr),
   [Hạng mục tính phí], [Ghi chú],
   [EKS control plane], [Tính theo giờ khi cluster còn tồn tại],
-  [Node EC2], [Mặc định 2 × `t3.medium` on-demand],
+  [Node EC2], [Mặc định 3 × `t3.medium` on-demand],
   [NAT Gateway], [Theo giờ và theo GB xử lý #link(facts.src.nat-pricing)[[AWS]]],
   [Interface endpoint], [3 endpoint × 2 AZ, theo giờ và theo GB],
   [Classic Load Balancer], [Theo giờ và theo GB],
@@ -341,16 +360,27 @@ kubectl get nodes                                  # Ready
 gh run list --limit 10                             # kết quả CI gần đây
 ```
 
+#shot("terminal-daily.png", [Các lệnh kiểm tra hằng ngày trên một cluster khỏe])
+
 == Cần theo dõi gì trên Grafana
 
 kube-prometheus-stack có sẵn dashboard cho cluster, node, namespace và workload. Theo dõi:
 
 - Số lần pod restart và container bị `OOMKilled` trong #raw(facts.namespace) (dashboard *Kubernetes / Compute Resources / Namespace (Pods)*).
 - CPU và memory của từng pod so với request và limit ở Phụ lục A.
-- CPU và memory của node: với 2 node `t3.medium`, cluster không còn nhiều dư địa.
+- CPU và memory của node: toàn bộ hệ thống chạy khoảng 37 pod trên 3 node `t3.medium`, và mỗi node chỉ nhận được một số pod giới hạn #link(facts.src.max-pods)[[AWS]].
 - Số replica của `frontend` (hoạt động của HPA).
 
 Hiện chưa có alert rule cho ứng dụng; Alertmanager chỉ có các rule mặc định. Alert theo SLO nằm trong roadmap.
+
+#shot("grafana-namespace-pods.png", [Grafana, dashboard Kubernetes / Compute Resources / Namespace (Pods) cho `dev-eks`])
+
+== EKS console
+
+EKS console có mục *Monitor cluster* hiển thị sức khỏe cluster, upgrade insights và metric của control plane. Dùng cùng Grafana để xem control plane, phần mà Prometheus trong cluster không thấy được.
+
+#shot("console-eks-observability.png", [Observability dashboard của EKS: sức khỏe cluster, upgrade insights, sức khỏe node])
+#shot("console-eks-control-plane.png", [Giám sát control plane của EKS: API request concurrency, pod scheduling rate, dung lượng etcd])
 
 == Log
 
@@ -441,6 +471,8 @@ Hiện chưa có alert rule cho ứng dụng; Alertmanager chỉ có các rule m
   fix: [Thêm tên release của bên gọi vào `allowFrom` của bên được gọi (RB-06).],
 )
 
+#shot("terminal-security.png", [Hành vi đúng trên EKS: PSA từ chối pod không có security context (IR-08); pod không liên quan vào được `frontend` nhưng không gọi được `paymentservice` hay `redis-cart` (IR-09)])
+
 == IR-10 Không vào được shop từ internet
 
 #playbook(
@@ -454,7 +486,7 @@ Hiện chưa có alert rule cho ứng dụng; Alertmanager chỉ có các rule m
 
 #playbook(
   symptom: [Pod nằm ở `Pending` với `Insufficient cpu`/`memory`, hoặc một node ở trạng thái `NotReady`.],
-  cause: [Tổng request vượt khả năng của 2 node `t3.medium` (ví dụ sau khi scale); một node gặp lỗi.],
+  cause: [Tổng request hoặc số pod vượt khả năng của 3 node `t3.medium` (ví dụ sau khi scale); một node gặp lỗi.],
   diagnose: [`kubectl describe pod <pod>` (thông báo của scheduler); `kubectl describe node <node>` (resource đã cấp, conditions); `kubectl top nodes`.],
   fix: [Giảm replica hoặc request, hoặc tăng kích thước node group (RB-09). Node lỗi trong managed node group sẽ được EKS thay; nếu không, cordon, drain rồi terminate instance đó.],
 )
@@ -484,6 +516,15 @@ Hiện chưa có alert rule cho ứng dụng; Alertmanager chỉ có các rule m
   cause: [`redis-cart` khởi động lại; dữ liệu nằm trong volume `emptyDir` nên mất khi khởi động lại.],
   diagnose: [`kubectl -n dev-eks get pod -l app=redis-cart-dev` (tuổi pod, số lần restart).],
   fix: [Đây là hành vi đã biết của bản demo. Cần kho lưu bền vững (ElastiCache hoặc PersistentVolume) trước khi dùng thật.],
+)
+
+== IR-15 EKS console báo "Data unavailable"
+
+#playbook(
+  symptom: [EKS console hiện *Data unavailable* ở Pods, Nodes hoặc IAM access entries, hoặc báo `nodes is forbidden: User "arn:aws:sts::...:assumed-role/..." cannot list resource "nodes"`.],
+  cause: [Role dùng trên console có quyền IAM nhưng không có quyền Kubernetes trong cluster. Ở authentication mode `CONFIG_MAP` chỉ người tạo cluster có quyền, và `AmazonEKSViewPolicy` không bao gồm node #link(facts.src.access-policies)[[AWS]].],
+  diagnose: [`aws eks describe-cluster --name khaipd18-eks-cluster --query cluster.accessConfig`; `aws eks list-access-entries --cluster-name khaipd18-eks-cluster`; tìm role của console trong CloudTrail (sự kiện `DescribeCluster`, trường `userIdentity.arn`).],
+  fix: [Apply Terraform hiện tại: nó đặt `API_AND_CONFIG_MAP` và cấp cho role console `AmazonEKSAdminViewPolicy` #link(facts.src.console-view)[[AWS]]. Với role khác, thêm ARN vào `eks_console_viewer_role_arns`.],
 )
 
 = Khôi phục sau thảm họa

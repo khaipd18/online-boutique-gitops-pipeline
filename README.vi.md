@@ -199,7 +199,14 @@ git log --grep='\[skip ci\]' --format='%h %ad %an %s' --date=short
 
 Môi trường AWS đã được gỡ sau đó để không tốn chi phí. Ngày 10/10/2026, code Terraform hiện tại được apply lên một tài khoản mới: 73 resource được tạo trong 17 phút, cả hai node `Ready` ở hai AZ, bốn add-on đều `ACTIVE` và Metrics Server trả về số liệu; sau đó `terraform destroy` xóa sạch trong 7 phút. Lần chạy này cho thấy EKS để sót log group của control plane, nên giờ Terraform tự tạo và quản lý log group đó (74 resource).
 
-Các lớp bảo mật thêm vào sau này (tách role plan/apply, Trivy, pod hardening, NetworkPolicy, PSA) được kiểm chứng bằng ba cách bên dưới.
+Cũng trong ngày đó, toàn bộ hệ thống được triển khai và kiểm tra trên tài khoản này rồi destroy: 74 resource trên ba node, Argo CD v3.5.4 sync đủ 14 Application, đặt thử một đơn hàng qua load balancer thành công, và các lớp bảo mật được kiểm tra ngay trên EKS: Pod Security Admission từ chối pod không có security context, NetworkPolicy (do VPC CNI thực thi) cho pod không liên quan vào được `frontend` nhưng không gọi được `paymentservice` hay `redis-cart`. Xem thêm ảnh chụp trong [Sổ tay vận hành](docs/manuals/operations-runbook.vi.pdf).
+
+| | |
+|---|---|
+| ![Xác nhận đơn hàng trên EKS](docs/manuals/images/shop-order-complete.png) | ![Argo CD: 14 Application Synced và Healthy](docs/manuals/images/argocd-applications.png) |
+| ![EKS console: ba node Ready](docs/manuals/images/console-eks-nodes.png) | ![PSA và NetworkPolicy trên EKS](docs/manuals/images/terminal-security.png) |
+
+Trước đó, các lớp bảo mật thêm vào sau tháng 5 (tách role plan/apply, Trivy, pod hardening, NetworkPolicy, PSA) được kiểm chứng bằng ba cách bên dưới.
 
 ### Test end-to-end trên Kubernetes
 
@@ -294,7 +301,7 @@ terraform init && terraform plan && terraform apply
 aws eks update-kubeconfig --region ap-southeast-1 --name khaipd18-eks-cluster
 
 kubectl create namespace argocd
-kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+kubectl apply -n argocd --server-side -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml   # CRD của Argo CD 3.x cần server-side apply
 
 kubectl apply -f gitops/argocd/namespaces.yaml                 # namespace dev-eks, PSA restricted
 kubectl apply -f gitops/argocd/applicationset.yaml             # 10 service + Redis + frontend-external
@@ -388,6 +395,7 @@ Các việc tiếp theo, xếp theo mức ưu tiên:
 - [ ] Thêm môi trường staging/production với luồng promote, canary bằng Argo Rollouts.
 - [ ] Alert rules và Grafana dashboard theo SLO cho từng service.
 - [ ] Cân nhắc khóa state trực tiếp trên S3 thay cho DynamoDB.
+- [ ] Cân nhắc dùng [EKS capability cho Argo CD](https://docs.aws.amazon.com/eks/latest/userguide/capabilities.html) (AWS quản lý, chạy ngoài cluster) thay cho Argo CD tự cài trong cluster.
 
 ---
 

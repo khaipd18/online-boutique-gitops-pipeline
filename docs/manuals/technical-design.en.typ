@@ -1,4 +1,4 @@
-#import "lib/template.typ": manual, callout, palette
+#import "lib/template.typ": manual, callout, palette, shot
 #import "lib/facts.typ" as facts
 
 #let note = callout.with("note", lang: "en")
@@ -9,7 +9,7 @@
   title: "Technical Design Document",
   subtitle: "Platform, delivery pipeline and security design",
   doc-id: "OBE-TDD-001",
-  version: "1.1",
+  version: "1.2",
   date: facts.doc-date,
   status: "Approved for the dev environment",
   owner: "khaipd18 (DevOps / Cloud)",
@@ -19,7 +19,8 @@
   lang: "en",
   revisions: (
     ("1.0", "2026-10-09", "First issue: covers infrastructure, Kubernetes platform, CI/CD, security and the decisions behind them.", "khaipd18"),
-    ("1.1", facts.doc-date, "First run on the new account: state bucket renamed, control plane log group managed by Terraform (74 resources), apply and destroy verified.", "khaipd18"),
+    ("1.1", "2026-10-10", "First run on the new account: state bucket renamed, control plane log group managed by Terraform (74 resources), apply and destroy verified.", "khaipd18"),
+    ("1.2", facts.doc-date, "Full deployment on EKS with screenshots; three nodes by default; cluster access through EKS access entries; decision D11 on Argo CD.", "khaipd18"),
   ),
   related: (
     [OBE-RUN-001 Operations Runbook (`docs/manuals/operations-runbook.en.pdf`)],
@@ -105,7 +106,7 @@ Inbound traffic enters through the Internet Gateway to the load balancer in the 
   [Availability], [The entry point survives the loss of one pod or one node.], [`frontend` runs 2-4 replicas with a PodDisruptionBudget and zone/node spreading.],
   [Operability], [The cluster state can be rebuilt from Git alone.], [Argo CD with automated sync, prune and self-heal.],
   [Portability], [Moving to another AWS account needs no code change.], [Account ID read from credentials (Terraform) and the `AWS_ACCOUNT_ID` variable (CI).],
-  [Cost], [A dev environment that can be created and destroyed on demand.], [One NAT Gateway, 2 `t3.medium` nodes, `terraform destroy` documented.],
+  [Cost], [A dev environment that can be created and destroyed on demand.], [One NAT Gateway, 3 `t3.medium` nodes, `terraform destroy` documented.],
 )
 
 == Constraints
@@ -136,6 +137,8 @@ Inbound traffic enters through the Internet Gateway to the load balancer in the 
 
 #figure(image(facts.fig.network, width: 100%), caption: [LLD: network detail])
 
+#shot("console-vpc-resource-map.png", [The deployed VPC in the AWS console: 4 subnets in two AZs, public and private route tables, Internet Gateway, NAT Gateway and S3 gateway endpoint])
+
 == Security groups
 
 #figure(image(facts.fig.sg, width: 100%), caption: [LLD: security group flow])
@@ -152,14 +155,14 @@ Inbound traffic enters through the Internet Gateway to the load balancer in the 
   [Cluster], [#raw(facts.cluster), Kubernetes 1.35],
   [API endpoint], [Public and private. Public access is open to `0.0.0.0/0` (accepted for dev, see @exceptions) #link(facts.src.endpoint)[[AWS]]],
   [Control plane logs], [All 5 types: api, audit, authenticator, controllerManager, scheduler],
-  [Node group], [Managed, `t3.medium`, `AL2023_x86_64_STANDARD`, on-demand, 20 GiB disk, min 1 / desired 2 / max 3, private subnets only],
+  [Node group], [Managed, `t3.medium`, `AL2023_x86_64_STANDARD`, on-demand, 20 GiB disk, min 1 / desired 3 / max 4, private subnets only],
   [Add-ons], [VPC CNI with `enableNetworkPolicy` and its own IRSA role, CoreDNS, kube-proxy, Metrics Server (community add-on)],
-  [Cluster access], [No `access_config` block: the API default applies (authentication mode `CONFIG_MAP`, creator gets admin) #link(facts.src.access-config)[[AWS]]],
+  [Cluster access], [Authentication mode `API_AND_CONFIG_MAP`. The creator is admin; the console role gets `AmazonEKSAdminViewPolicy` through an access entry #link(facts.src.access-entries)[[AWS]]],
 )
 
 Kubernetes 1.35 reaches end of standard support on 27 March 2027 and end of extended support on 27 March 2028 #link(facts.src.versions)[[AWS]]. The upgrade procedure is in the runbook.
 
-#note[Because no `access_config` is set, only the IAM principal that created the cluster (the one that ran the first `terraform apply`) can use `kubectl` at first. Setting `authentication_mode = "API_AND_CONFIG_MAP"` and managing access entries in Terraform is the recommended next step #link(facts.src.access-entries)[[AWS]].]
+#note[`AmazonEKSAdminViewPolicy` is read-only but also lets the console role read Kubernetes Secrets. `AmazonEKSViewPolicy` would hide Secrets but does not include nodes, so the console could not show them #link(facts.src.access-policies)[[AWS]].]
 
 == Container registry: Amazon ECR
 
@@ -167,6 +170,8 @@ Kubernetes 1.35 reaches end of standard support on 27 March 2027 and end of exte
 - Lifecycle policy: untagged images expire after 14 days; images not pulled for 90 days move to the archive storage class.
 - Scan on push (basic scanning) is configured at *registry* level with `aws_ecr_registry_scanning_configuration`, as AWS recommends instead of the deprecated repository-level setting #link(facts.src.ecr-scanning)[[AWS]].
 - `force_delete = true` lets `terraform destroy` remove repositories that still hold images. This suits a disposable dev environment and should be turned off for production.
+
+#shot("console-ecr-repositories.png", [The 10 ECR repositories: immutable tags, AES-256 encryption])
 
 == Identity and access
 
@@ -187,6 +192,9 @@ GitHub Actions authenticates with short-lived tokens from the GitHub OIDC provid
 - The apply role trusts the `production` *environment* rather than the `main` branch. That environment accepts deployments from `main` only and waits for a reviewer, as AWS recommends when a trust policy relies on GitHub environments #link(facts.src.oidc-role)[[AWS]].
 - GitHub does not issue OIDC tokens to pull requests from forks, so the plan role can only be used by collaborators with write access.
 - Inside the cluster, the VPC CNI uses IRSA (role bound to `kube-system/aws-node`) instead of the node role #link(facts.src.irsa)[[AWS]]. No application pod needs AWS access.
+
+#shot("console-iam-oidc-provider.png", [The GitHub OIDC provider in IAM, audience `sts.amazonaws.com`])
+#shot("console-iam-trust-policy.png", [Trust policy of the apply role: only the `production` environment, in both `sub` formats])
 
 == Terraform state
 
@@ -363,6 +371,7 @@ Kubernetes manifests rendered from the chart have 12 remaining Checkov findings 
   [D8], [IRSA for the VPC CNI], [Works on every EKS version and was in place first.], [EKS Pod Identity is now the simpler option: no OIDC provider per cluster and a single trust principal #link(facts.src.pod-identity)[[AWS]].],
   [D9], [DynamoDB state locking], [Supported by every Terraform version in use when the project started.], [Move to S3 native locking (roadmap).],
   [D10], [Upstream findings as warnings, not fixes], [The application code is not maintained here.], [Dependencies are upgraded (then set gates to blocking).],
+  [D11], [Argo CD installed in the cluster from the upstream manifest], [No extra cost, full control over the version and configuration.], [Operating Argo CD becomes a burden: EKS can run it as a managed capability outside the cluster, billed per hour #link(facts.src.capabilities)[[AWS]].],
 )
 
 = Verification <verification>
@@ -374,10 +383,14 @@ Kubernetes manifests rendered from the chart have 12 remaining Checkov findings 
   [End-to-end on kind (Kubernetes 1.37)], [11/11 pods ready with the chart's security context; browse, cart, currency change and checkout work; PSA rejects a non-compliant pod; NetworkPolicy blocks 3/3 unauthorised connections.],
   [HPA and PDB on a 3-node kind cluster], [`frontend` scaled 2 → 3 at 82 % CPU; draining the last node that ran `frontend` was blocked by the PDB.],
   [Apply on a new account (2026-10-10)], [73 resources created in 17 minutes; 2 nodes `Ready` in two AZs, 4 add-ons `ACTIVE`, Metrics Server serving metrics; `terraform destroy` removed everything in 7 minutes.],
+  [Full deployment (2026-10-10)], [74 resources on 3 nodes; Argo CD v3.5.4 synced all 14 applications; a test order completed through the load balancer; PSA rejected a non-compliant pod and NetworkPolicy blocked 2/2 unrelated connections on EKS (enforced by the VPC CNI); destroyed afterwards.],
   [Terraform], [`fmt` and `validate` pass; plan against an empty state: 74 resources to add, no errors.],
   [Checkov 3.3.22], [Terraform 0 new findings (12 baselined); Kubernetes 999 passed / 12 failed; GitHub Actions 5 failed.],
   [CI without AWS (2026-10-08)], [All 5 language workflows green; AWS steps skipped; Trivy results uploaded for all 10 images.],
 )
+
+#shot("terminal-security.png", [Security controls on EKS: PSA rejects a non-compliant pod; NetworkPolicy lets an unrelated pod reach `frontend` only])
+#shot("shop-order-complete.png", [Order confirmation from the shop running on EKS], width: 80%)
 
 = Risks, limitations and roadmap <risks>
 
@@ -403,7 +416,7 @@ In order of priority:
 + Restrict the EKS public endpoint or move to a private endpoint.
 + Narrow `ecr-endpoint-sg` to `tcp/443` from the VPC.
 + Replace the single NAT Gateway with a regional NAT gateway.
-+ Manage cluster access with EKS access entries in Terraform.
++ Consider the EKS capability for Argo CD (decision D11).
 + External Secrets Operator with AWS Secrets Manager.
 + Pin images by digest, sign them with cosign and verify at admission.
 + AWS Load Balancer Controller with TLS instead of the Classic Load Balancer.

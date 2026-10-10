@@ -199,7 +199,14 @@ git log --grep='\[skip ci\]' --format='%h %ad %an %s' --date=short
 
 The AWS environment was torn down afterwards to avoid cost. On 2026-10-10 the current Terraform code was applied to a new account: 73 resources created in 17 minutes, both nodes `Ready` in two AZs, all four add-ons `ACTIVE` and Metrics Server serving metrics; `terraform destroy` then removed everything in 7 minutes. That run showed that EKS leaves its control plane log group behind, so Terraform now creates and owns it (74 resources).
 
-The security layers added later (plan/apply role split, Trivy, pod hardening, NetworkPolicy, PSA) were verified in the three ways below.
+Later the same day the whole stack was deployed and tested on that account, then destroyed: 74 resources on three nodes, Argo CD v3.5.4 syncing all 14 applications, a test order placed through the load balancer, and the security layers checked on EKS itself: Pod Security Admission rejected a pod without a security context, and NetworkPolicy (enforced by the VPC CNI) let an unrelated pod reach `frontend` but not `paymentservice` or `redis-cart`. More screenshots are in the [Operations Runbook](docs/manuals/operations-runbook.en.pdf).
+
+| | |
+|---|---|
+| ![Order confirmation on EKS](docs/manuals/images/shop-order-complete.png) | ![Argo CD: 14 applications Synced and Healthy](docs/manuals/images/argocd-applications.png) |
+| ![EKS console: three nodes Ready](docs/manuals/images/console-eks-nodes.png) | ![PSA and NetworkPolicy on EKS](docs/manuals/images/terminal-security.png) |
+
+Before that, the security layers added after May (plan/apply role split, Trivy, pod hardening, NetworkPolicy, PSA) were verified in the three ways below.
 
 ### End-to-end test on Kubernetes
 
@@ -294,7 +301,7 @@ terraform init && terraform plan && terraform apply
 aws eks update-kubeconfig --region ap-southeast-1 --name khaipd18-eks-cluster
 
 kubectl create namespace argocd
-kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+kubectl apply -n argocd --server-side -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml   # Argo CD 3.x CRDs need server-side apply
 
 kubectl apply -f gitops/argocd/namespaces.yaml                 # dev-eks namespace, PSA restricted
 kubectl apply -f gitops/argocd/applicationset.yaml             # 10 services + Redis + frontend-external
@@ -388,6 +395,7 @@ What comes next, in order of priority:
 - [ ] Add staging/production environments with a promotion flow, and canary releases with Argo Rollouts.
 - [ ] SLO-based alert rules and Grafana dashboards for every service.
 - [ ] Consider native S3 state locking instead of DynamoDB.
+- [ ] Consider the [EKS capability for Argo CD](https://docs.aws.amazon.com/eks/latest/userguide/capabilities.html) (managed by AWS, outside the cluster) instead of running Argo CD in the cluster.
 
 ---
 

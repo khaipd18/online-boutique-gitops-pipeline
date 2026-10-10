@@ -80,7 +80,7 @@
     fill: color.lighten(92%),
     stroke: (left: 3pt + color),
     radius: (right: 2pt),
-    breakable: true,
+    breakable: false,
   )[
     #text(weight: "bold", fill: color, size: 8.5pt)[#upper(strings.at(lang).at(key))]
     #v(-4pt)
@@ -101,6 +101,12 @@
     labels.at(3), fix,
   )
 })
+
+// Screenshot from docs/manuals/images with a thin border and a caption
+#let shot(name, caption, width: 100%) = figure(
+  box(stroke: 0.5pt + palette.rule, image("/docs/manuals/images/" + name, width: width)),
+  caption: caption,
+)
 
 // Compact key/value table
 #let kv(..rows) = table(

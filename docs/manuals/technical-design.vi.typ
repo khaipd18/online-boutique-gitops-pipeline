@@ -1,4 +1,4 @@
-#import "lib/template.typ": manual, callout, palette
+#import "lib/template.typ": manual, callout, palette, shot
 #import "lib/facts.typ" as facts
 
 #let note = callout.with("note", lang: "vi")
@@ -12,7 +12,7 @@
   title: "Tài liệu thiết kế kỹ thuật",
   subtitle: "Thiết kế nền tảng, pipeline triển khai và bảo mật",
   doc-id: "OBE-TDD-001-VI",
-  version: "1.1",
+  version: "1.2",
   date: facts.doc-date,
   status: "Đã duyệt cho môi trường dev",
   owner: "khaipd18 (DevOps / Cloud)",
@@ -22,7 +22,8 @@
   lang: "vi",
   revisions: (
     ("1.0", "2026-10-09", "Phát hành lần đầu: hạ tầng, nền tảng Kubernetes, CI/CD, bảo mật và các quyết định thiết kế.", "khaipd18"),
-    ("1.1", facts.doc-date, "Chạy thật trên tài khoản mới: đổi tên bucket state, Terraform quản lý log group của control plane (74 resource), đã kiểm chứng apply và destroy.", "khaipd18"),
+    ("1.1", "2026-10-10", "Chạy thật trên tài khoản mới: đổi tên bucket state, Terraform quản lý log group của control plane (74 resource), đã kiểm chứng apply và destroy.", "khaipd18"),
+    ("1.2", facts.doc-date, "Triển khai đầy đủ trên EKS kèm ảnh chụp; mặc định 3 node; quyền vào cluster qua EKS access entry; quyết định D11 về Argo CD.", "khaipd18"),
   ),
   related: (
     [OBE-RUN-001-VI Sổ tay vận hành (`docs/manuals/operations-runbook.vi.pdf`)],
@@ -109,7 +110,7 @@ Traffic từ internet đi qua Internet Gateway tới load balancer trong public 
   [Độ sẵn sàng], [Điểm vào hệ thống chịu được việc mất một pod hoặc một node.], [`frontend` chạy 2–4 replica, có PodDisruptionBudget và rải theo zone/node.],
   [Vận hành], [Dựng lại được trạng thái cluster chỉ từ Git.], [Argo CD tự động sync, prune và self-heal.],
   [Tính di động], [Chuyển sang tài khoản AWS khác không cần sửa code.], [Account ID lấy từ credentials (Terraform) và biến `AWS_ACCOUNT_ID` (CI).],
-  [Chi phí], [Môi trường dev dựng lên và gỡ đi khi cần.], [Một NAT Gateway, 2 node `t3.medium`, có hướng dẫn `terraform destroy`.],
+  [Chi phí], [Môi trường dev dựng lên và gỡ đi khi cần.], [Một NAT Gateway, 3 node `t3.medium`, có hướng dẫn `terraform destroy`.],
 )
 
 == Ràng buộc
@@ -140,6 +141,8 @@ Traffic từ internet đi qua Internet Gateway tới load balancer trong public 
 
 #figure(image(facts.fig.network, width: 100%), caption: [LLD: chi tiết mạng])
 
+#shot("console-vpc-resource-map.png", [VPC đã triển khai trên AWS console: 4 subnet ở hai AZ, route table public và private, Internet Gateway, NAT Gateway và S3 gateway endpoint])
+
 == Security group
 
 #figure(image(facts.fig.sg, width: 100%), caption: [LLD: luồng security group])
@@ -156,14 +159,14 @@ Traffic từ internet đi qua Internet Gateway tới load balancer trong public 
   [Cluster], [#raw(facts.cluster), Kubernetes 1.35],
   [API endpoint], [Public và private. Public mở cho `0.0.0.0/0` (chấp nhận cho dev, xem @exceptions) #link(facts.src.endpoint)[[AWS]]],
   [Control plane log], [Đủ 5 loại: api, audit, authenticator, controllerManager, scheduler],
-  [Node group], [Managed, `t3.medium`, `AL2023_x86_64_STANDARD`, on-demand, đĩa 20 GiB, min 1 / desired 2 / max 3, chỉ nằm trong private subnet],
+  [Node group], [Managed, `t3.medium`, `AL2023_x86_64_STANDARD`, on-demand, đĩa 20 GiB, min 1 / desired 3 / max 4, chỉ nằm trong private subnet],
   [Add-on], [VPC CNI bật `enableNetworkPolicy` và có IRSA role riêng, CoreDNS, kube-proxy, Metrics Server (community add-on)],
-  [Quyền vào cluster], [Không có khối `access_config`: áp dụng mặc định của API (authentication mode `CONFIG_MAP`, người tạo cluster có quyền admin) #link(facts.src.access-config)[[AWS]]],
+  [Quyền vào cluster], [Authentication mode `API_AND_CONFIG_MAP`. Người tạo cluster là admin; role console có `AmazonEKSAdminViewPolicy` qua access entry #link(facts.src.access-entries)[[AWS]]],
 )
 
 Kubernetes 1.35 hết standard support ngày 27/03/2027 và hết extended support ngày 27/03/2028 #link(facts.src.versions)[[AWS]]. Quy trình nâng phiên bản nằm trong sổ tay vận hành.
 
-#note[Vì không đặt `access_config`, ban đầu chỉ IAM principal đã tạo cluster (người chạy `terraform apply` lần đầu) dùng được `kubectl`. Bước nên làm tiếp là đặt `authentication_mode = "API_AND_CONFIG_MAP"` và quản lý access entry bằng Terraform #link(facts.src.access-entries)[[AWS]].]
+#note[`AmazonEKSAdminViewPolicy` chỉ đọc nhưng cho phép role console đọc cả Kubernetes Secret. `AmazonEKSViewPolicy` thì không đọc được Secret nhưng cũng không có quyền xem node, nên console không hiển thị được node #link(facts.src.access-policies)[[AWS]].]
 
 == Container registry: Amazon ECR
 
@@ -171,6 +174,8 @@ Kubernetes 1.35 hết standard support ngày 27/03/2027 và hết extended suppo
 - Lifecycle policy: image untagged hết hạn sau 14 ngày; image không được pull trong 90 ngày chuyển sang lớp lưu trữ archive.
 - Scan on push (basic scanning) được cấu hình ở cấp *registry* bằng `aws_ecr_registry_scanning_configuration`, theo khuyến nghị của AWS thay cho thiết lập cấp repository đã deprecated #link(facts.src.ecr-scanning)[[AWS]].
 - `force_delete = true` cho phép `terraform destroy` xóa repository còn image. Phù hợp với môi trường dev dùng xong bỏ; nên tắt khi lên production.
+
+#shot("console-ecr-repositories.png", [10 repository ECR: tag immutable, mã hóa AES-256])
 
 == Định danh và phân quyền
 
@@ -191,6 +196,9 @@ GitHub Actions xác thực bằng token ngắn hạn do GitHub OIDC provider `to
 - Role apply tin *environment* `production` thay vì nhánh `main`. Environment này chỉ nhận deployment từ `main` và chờ người duyệt, đúng khuyến nghị của AWS khi trust policy dựa vào GitHub environment #link(facts.src.oidc-role)[[AWS]].
 - GitHub không cấp OIDC token cho pull request từ fork, nên role plan chỉ được dùng bởi người có quyền ghi vào repository.
 - Trong cluster, VPC CNI dùng IRSA (role gắn với `kube-system/aws-node`) thay vì role của node #link(facts.src.irsa)[[AWS]]. Không pod ứng dụng nào cần quyền AWS.
+
+#shot("console-iam-oidc-provider.png", [GitHub OIDC provider trong IAM, audience `sts.amazonaws.com`])
+#shot("console-iam-trust-policy.png", [Trust policy của role apply: chỉ environment `production`, ở cả hai định dạng `sub`])
 
 == Terraform state
 
@@ -367,6 +375,7 @@ Manifest Kubernetes render từ chart còn 12 finding Checkov (từ 128 trước
   [D8], [IRSA cho VPC CNI], [Chạy trên mọi phiên bản EKS và có từ đầu.], [EKS Pod Identity giờ là cách đơn giản hơn: không cần OIDC provider cho từng cluster, một trust principal duy nhất #link(facts.src.pod-identity)[[AWS]].],
   [D9], [Khóa state bằng DynamoDB], [Mọi phiên bản Terraform dùng lúc bắt đầu dự án đều hỗ trợ.], [Chuyển sang khóa trực tiếp trên S3 (roadmap).],
   [D10], [Finding của code upstream để ở mức warning], [Code ứng dụng không được bảo trì ở repository này.], [Dependency được nâng cấp (khi đó chuyển gate sang blocking).],
+  [D11], [Argo CD cài trong cluster từ manifest upstream], [Không tốn thêm tiền, toàn quyền chọn phiên bản và cấu hình.], [Việc vận hành Argo CD thành gánh nặng: EKS có thể chạy Argo CD dưới dạng capability được quản lý, bên ngoài cluster, tính phí theo giờ #link(facts.src.capabilities)[[AWS]].],
 )
 
 = Kiểm chứng <verification>
@@ -378,10 +387,14 @@ Manifest Kubernetes render từ chart còn 12 finding Checkov (từ 128 trước
   [End-to-end trên kind (Kubernetes 1.37)], [11/11 pod ready với security context của chart; xem sản phẩm, giỏ hàng, đổi tiền tệ và checkout đều chạy; PSA từ chối pod không đạt chuẩn; NetworkPolicy chặn 3/3 kết nối trái phép.],
   [HPA và PDB trên cluster kind 3 node], [`frontend` scale 2 → 3 ở 82 % CPU; drain node cuối cùng còn chạy `frontend` bị PDB chặn.],
   [Apply trên tài khoản mới (10/10/2026)], [Tạo 73 resource trong 17 phút; 2 node `Ready` ở hai AZ, 4 add-on `ACTIVE`, Metrics Server trả về số liệu; `terraform destroy` xóa sạch trong 7 phút.],
+  [Triển khai đầy đủ (10/10/2026)], [74 resource trên 3 node; Argo CD v3.5.4 sync đủ 14 Application; đặt thử một đơn hàng qua load balancer thành công; trên EKS, PSA từ chối pod không đạt chuẩn và NetworkPolicy chặn 2/2 kết nối không liên quan (do VPC CNI thực thi); sau đó đã destroy.],
   [Terraform], [`fmt` và `validate` pass; plan trên state rỗng: 74 resource sẽ được tạo, không lỗi.],
   [Checkov 3.3.22], [Terraform 0 finding mới (12 trong baseline); Kubernetes 999 pass / 12 fail; GitHub Actions 5 fail.],
   [CI không có AWS (08/10/2026)], [Cả 5 workflow theo ngôn ngữ xanh; bước AWS được bỏ qua; kết quả Trivy được tải lên cho cả 10 image.],
 )
+
+#shot("terminal-security.png", [Các lớp bảo mật trên EKS: PSA từ chối pod không đạt chuẩn; NetworkPolicy chỉ cho pod không liên quan vào `frontend`])
+#shot("shop-order-complete.png", [Trang xác nhận đơn hàng của shop chạy trên EKS], width: 80%)
 
 = Rủi ro, hạn chế và roadmap <risks>
 
@@ -407,7 +420,7 @@ Theo thứ tự ưu tiên:
 + Giới hạn EKS public endpoint hoặc chuyển sang private endpoint.
 + Thu hẹp `ecr-endpoint-sg` về `tcp/443` từ VPC.
 + Thay NAT Gateway duy nhất bằng regional NAT gateway.
-+ Quản lý quyền vào cluster bằng EKS access entry trong Terraform.
++ Cân nhắc dùng EKS capability cho Argo CD (quyết định D11).
 + External Secrets Operator với AWS Secrets Manager.
 + Pin image theo digest, ký bằng cosign và verify ở admission.
 + AWS Load Balancer Controller có TLS thay cho Classic Load Balancer.
