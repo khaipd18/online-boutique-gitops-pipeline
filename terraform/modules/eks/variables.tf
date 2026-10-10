@@ -4,6 +4,12 @@ variable "cluster_name" {
   type        = string
 }
 
+variable "console_viewer_role_arns" {
+  description = "IAM role ARNs that get read-only access to the cluster through EKS access entries (used by the EKS console)."
+  type        = list(string)
+  default     = []
+}
+
 variable "log_retention_days" {
   description = "Number of days to keep the control plane logs in CloudWatch Logs."
   type        = number

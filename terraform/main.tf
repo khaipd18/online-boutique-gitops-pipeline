@@ -150,6 +150,12 @@ module "github_oidc_role_terraform_plan" {
   ]
 }
 
+# Accounts created with the AWS-managed project experience sign in to the console with this role; empty elsewhere
+data "aws_iam_roles" "console_full_access" {
+  path_prefix = "/managed/"
+  name_regex  = "^AccountFullAccessRole$"
+}
+
 #eks module configuration
 module "eks" {
   source       = "./modules/eks"
@@ -158,6 +164,8 @@ module "eks" {
   k8s_version = var.eks_k8s_version
 
   log_retention_days = var.eks_log_retention_days
+
+  console_viewer_role_arns = concat(tolist(data.aws_iam_roles.console_full_access.arns), var.eks_console_viewer_role_arns)
 
   vpc_id = module.vpc.output_vpc_id
 

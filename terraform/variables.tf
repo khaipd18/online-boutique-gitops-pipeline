@@ -103,6 +103,12 @@ variable "eks_vpc_config_override" {
   }
 }
 
+variable "eks_console_viewer_role_arns" {
+  description = "Extra IAM role ARNs that get read-only access to the cluster in the EKS console. The AccountFullAccessRole of an AWS-managed project account is added automatically when it exists."
+  type        = list(string)
+  default     = []
+}
+
 variable "eks_log_retention_days" {
   description = "Number of days to keep the EKS control plane logs in CloudWatch Logs."
   type        = number
